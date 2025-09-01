@@ -4,7 +4,7 @@ import subprocess
 import threading
 import os
 import json
-import webbrowser 
+import webbrowser
 
 class ToolTip:
     """
@@ -42,8 +42,8 @@ class LlamaServerGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("LLaMA Server GUI Manager")
-        self.root.geometry("800x600")
-        self.root.minsize(800, 600)
+        self.root.geometry("800x700")
+        self.root.minsize(800, 700)
 
         # Apply a modern theme
         style = ttk.Style(self.root)
@@ -53,13 +53,13 @@ class LlamaServerGUI:
         # Server process management
         self.server_process = None
         self.is_running = False
-        
+
         # Configuration file path
         self.config_file = "llama_server_config.json"
-        
+
         self.setup_ui()
         self.load_config()
-        
+
     def setup_ui(self):
         """Sets up the main UI layout, including notebook and control buttons."""
         main_container = ttk.Frame(self.root, padding="10")
@@ -68,24 +68,27 @@ class LlamaServerGUI:
         # Create notebook for tabs
         notebook = ttk.Notebook(main_container)
         notebook.pack(fill=tk.BOTH, expand=True)
-        
+
         # --- Tab Frames ---
         main_frame = ttk.Frame(notebook, padding="10")
-        advanced_frame = ttk.Frame(notebook, padding="10")
+        tuning_frame = ttk.Frame(notebook, padding="10")
+        features_frame = ttk.Frame(notebook, padding="10")
         output_frame = ttk.Frame(notebook, padding="10")
 
-        notebook.add(main_frame, text="Main Parameters")
-        notebook.add(advanced_frame, text="Advanced")
+        notebook.add(main_frame, text="Main")
+        notebook.add(tuning_frame, text="Tuning")
+        notebook.add(features_frame, text="Features")
         notebook.add(output_frame, text="Server Output")
-        
+
         self.setup_main_tab(main_frame)
-        self.setup_advanced_tab(advanced_frame)
+        self.setup_tuning_tab(tuning_frame)
+        self.setup_features_tab(features_frame)
         self.setup_output_tab(output_frame)
-        
+
         # --- Control Buttons ---
         control_frame = ttk.Frame(main_container)
         control_frame.pack(fill=tk.X, pady=(10, 0))
-        
+
         # Left-aligned buttons
         left_button_frame = ttk.Frame(control_frame)
         left_button_frame.pack(side=tk.LEFT)
@@ -101,176 +104,207 @@ class LlamaServerGUI:
         self.start_button = self.create_button(right_button_frame, "Start Server ▶️", self.start_server, "Start the server with the current settings.", style="Accent.TButton")
 
     def setup_main_tab(self, parent):
-        """Sets up the widgets in the 'Main Parameters' tab."""
-        # --- Model & Context ---
-        model_group = ttk.Labelframe(parent, text="Model & Context", padding="10")
+        """Sets up the widgets in the 'Main' tab."""
+        # --- Model Configuration ---
+        model_group = ttk.Labelframe(parent, text="Model Configuration", padding="10")
         model_group.pack(fill=tk.X, pady=5)
-        
-        # Model Path
-        ttk.Label(model_group, text="Model Path (.gguf):").grid(row=0, column=0, sticky=tk.W, pady=5)
-        model_path_frame = ttk.Frame(model_group)
-        model_path_frame.grid(row=0, column=1, sticky=tk.EW, pady=5)
-        model_group.columnconfigure(1, weight=1)
+
         self.model_path = tk.StringVar()
-        model_entry = ttk.Entry(model_path_frame, textvariable=self.model_path)
-        model_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        ToolTip(model_entry, "Path to the GGUF model file you want to serve.")
-        browse_btn = ttk.Button(model_path_frame, text="Browse", command=self.browse_model)
-        browse_btn.pack(side=tk.RIGHT)
-        ToolTip(browse_btn, "Open a file dialog to select a .gguf model.")
+        self.create_file_entry(model_group, "Model Path (-m):", self.model_path, "Path to the GGUF model file.", ".gguf", row=0)
 
-        # Context Size Slider
-        self.ctx_size = tk.IntVar(value=4096)
-        self.create_slider(model_group, "Context Size (-c):", self.ctx_size, "The context size (sequence length) for the model.", 
-                          from_=0, to=131072, resolution=1024, row=1)
-
-        # GPU Layers Slider
-        self.gpu_layers = tk.IntVar(value=99)
-        self.create_slider(model_group, "GPU Layers (-ngl):", self.gpu_layers, "Number of model layers to offload to the GPU. 99 for all.", 
-                          from_=0, to=99, resolution=1, row=2)
+        self.alias = tk.StringVar()
+        self.create_entry(model_group, "Model Alias (-a):", self.alias, "Set an alias for the model, used in API calls.", row=1)
 
         # --- Server Configuration ---
         server_group = ttk.Labelframe(parent, text="Server Configuration", padding="10")
         server_group.pack(fill=tk.X, pady=5)
-        
+
+        self.host = tk.StringVar(value="127.0.0.1")
+        self.create_entry(server_group, "Host (--host):", self.host, "IP address to listen on (e.g., 0.0.0.0 for network access).", row=0)
+
         self.port = tk.StringVar(value="8080")
-        self.create_entry(server_group, "Port (--port):", self.port, "The network port the server will listen on.", row=0)
-        
-        # --- Common Flags ---
-        flags_group = ttk.Labelframe(parent, text="Common Flags", padding="10")
-        flags_group.pack(fill=tk.X, pady=5)
+        self.create_entry(server_group, "Port (--port):", self.port, "The network port the server will listen on.", row=1)
 
-        self.jinja = tk.BooleanVar(value=True)
-        self.create_checkbutton(flags_group, "Jinja (--jinja)", self.jinja, "Enable Jinja2 templating for chat.")
-        
-        self.flash_attn = tk.BooleanVar(value=False)
-        self.create_checkbutton(flags_group, "Flash Attention (-fa)", self.flash_attn, "Enable Flash Attention for faster processing.")
+        self.api_key = tk.StringVar()
+        self.create_entry(server_group, "API Key (--api-key):", self.api_key, "API key for bearer token authentication (optional).", row=2)
 
-        self.no_mmap = tk.BooleanVar(value=False)
-        self.create_checkbutton(flags_group, "No Memory Mapping (--no-mmap)", self.no_mmap, "Disable memory mapping of the model file.")
-        
-        self.no_webui = tk.BooleanVar(value=False)
-        self.create_checkbutton(flags_group, "Disable Web UI (--no-webui)", self.no_webui, "Disable the built-in web interface.")
-  
+    def setup_tuning_tab(self, parent):
+        """Sets up the widgets in the 'Tuning' tab."""
+        # --- Context & GPU ---
+        context_group = ttk.Labelframe(parent, text="Context & GPU Offload", padding="10")
+        context_group.pack(fill=tk.X, pady=5)
 
-    def setup_advanced_tab(self, parent):
-        """Sets up the widgets in the 'Advanced' tab."""
-        # --- Performance Tuning ---
-        perf_group = ttk.Labelframe(parent, text="Performance Tuning", padding="10")
+        self.ctx_size = tk.IntVar(value=4096)
+        self.create_slider(context_group, "Context Size (-c):", self.ctx_size, "The context size (sequence length) for the model.",
+                           from_=0, to=131072, resolution=1024, row=0)
+
+        self.gpu_layers = tk.IntVar(value=99)
+        self.create_slider(context_group, "GPU Layers (-ngl):", self.gpu_layers, "Number of model layers to offload to the GPU. 99 for all.",
+                           from_=0, to=99, resolution=1, row=1)
+
+        # --- Performance ---
+        perf_group = ttk.Labelframe(parent, text="Performance", padding="10")
         perf_group.pack(fill=tk.X, pady=5)
         
         self.threads = tk.StringVar(value="")
         self.create_entry(perf_group, "Threads (-t):", self.threads, "Number of CPU threads to use (e.g., 8).", row=0)
 
         self.batch_size = tk.StringVar(value="")
-        self.create_entry(perf_group, "Batch Size (-b):", self.batch_size, "Batch size for prompt processing (e.g., 512).", row=1)
+        self.create_entry(perf_group, "Batch Size (-b):", self.batch_size, "Batch size for prompt processing (e.g., 2048).", row=1)
         
         self.parallel = tk.StringVar(value="")
         self.create_entry(perf_group, "Parallel Sequences (-np):", self.parallel, "Number of parallel sequences to process (e.g., 4).", row=2)
 
-        # --- Advanced Flags ---
-        adv_flags_group = ttk.Labelframe(parent, text="Advanced Flags", padding="10")
+        # --- NEW PARAMETER ---
+        self.moe_cpu_layers = tk.StringVar(value="")
+        self.create_entry(perf_group, "MoE CPU Layers (--n-cpu-moe):", self.moe_cpu_layers, "Number of MoE layers to keep on the CPU. Used when the model doesn't fit on the GPU.", row=3)
+
+        # --- Memory & Advanced Flags ---
+        adv_flags_group = ttk.Labelframe(parent, text="Memory & Advanced Flags", padding="10")
         adv_flags_group.pack(fill=tk.X, pady=5)
 
-        self.cont_batching = tk.BooleanVar(value=True)
+        self.cont_batching = tk.BooleanVar(value=False)
         self.create_checkbutton(adv_flags_group, "Continuous Batching (-cb)", self.cont_batching, "Enable continuous batching for higher throughput.")
+
+        self.flash_attn = tk.BooleanVar(value=False)
+        self.create_checkbutton(adv_flags_group, "Flash Attention (-fa)", self.flash_attn, "Enable Flash Attention for faster processing.")
 
         self.mlock = tk.BooleanVar(value=False)
         self.create_checkbutton(adv_flags_group, "Memory Lock (--mlock)", self.mlock, "Lock the model in RAM to prevent swapping.")
         
+        self.no_mmap = tk.BooleanVar(value=False)
+        self.create_checkbutton(adv_flags_group, "No Memory Mapping (--no-mmap)", self.no_mmap, "Disable memory mapping of the model file.")
+
         self.numa = tk.BooleanVar(value=False)
         self.create_checkbutton(adv_flags_group, "NUMA Optimizations (--numa distribute)", self.numa, "Enable NUMA-aware optimizations.")
 
-        # --- Mixture of Experts (MoE) ---
-        moe_group = ttk.Labelframe(parent, text="Mixture of Experts (MoE)", padding="10")
-        moe_group.pack(fill=tk.X, pady=5)
+    def setup_features_tab(self, parent):
+        """Sets up the widgets in the 'Features' tab."""
+        # --- Chat Template ---
+        chat_group = ttk.Labelframe(parent, text="Chat Template", padding="10")
+        chat_group.pack(fill=tk.X, pady=5)
+
+        self.chat_template = tk.StringVar()
+        chat_templates = [
+            "", "bailing", "chatglm3", "chatglm4", "chatml", "command-r", "deepseek", 
+            "deepseek2", "deepseek3", "exaone3", "falcon3", "gemma", "gigachat", 
+            "glmedge", "granite", "llama2", "llama2-sys", "llama2-sys-bos", 
+            "llama2-sys-strip", "llama3", "llama4", "megrez", "minicpm", "mistral-v1", 
+            "mistral-v3", "mistral-v3-tekken", "mistral-v7", "mistral-v7-tekken", 
+            "monarch", "openchat", "orion", "phi3", "phi4", "rwkv-world", "smolvlm", 
+            "vicuna", "vicuna-orca", "yandex", "zephyr"
+        ]
+        self.create_combobox(chat_group, "Template (--chat-template):", self.chat_template,
+                             "Select a chat template. Leave blank for auto-detection from model.",
+                             chat_templates, row=0)
+
+        # --- LoRA ---
+        lora_group = ttk.Labelframe(parent, text="LoRA Adapter", padding="10")
+        lora_group.pack(fill=tk.X, pady=5)
+        self.lora_path = tk.StringVar()
+        self.create_file_entry(lora_group, "LoRA Path (--lora):", self.lora_path, "Path to a LoRA adapter file (optional).", ".gguf", row=0)
+
+        # --- Speculative Decoding ---
+        spec_group = ttk.Labelframe(parent, text="Speculative Decoding", padding="10")
+        spec_group.pack(fill=tk.X, pady=5)
         
-        self.moe_cpu_layers = tk.StringVar(value="")
-        self.create_entry(moe_group, "MoE CPU Layers (--n-cpu-moe):", self.moe_cpu_layers, "Number of MoE layers to run on the CPU (optional).", row=0)
+        self.draft_model_path = tk.StringVar()
+        self.create_file_entry(spec_group, "Draft Model (-md):", self.draft_model_path, "Path to the draft model for speculative decoding.", ".gguf", row=0)
+        self.draft_gpu_layers = tk.StringVar(value="")
+        self.create_entry(spec_group, "Draft GPU Layers (-ngld):", self.draft_gpu_layers, "Number of layers to offload for the draft model.", row=1)
+        self.draft_tokens = tk.StringVar(value="")
+        self.create_entry(spec_group, "Draft Tokens (--draft):", self.draft_tokens, "Number of tokens to draft (e.g., 5).", row=2)
+
+        # --- Other Flags ---
+        flags_group = ttk.Labelframe(parent, text="Other Feature Flags", padding="10")
+        flags_group.pack(fill=tk.X, pady=5)
+        self.embedding = tk.BooleanVar(value=False)
+        self.create_checkbutton(flags_group, "Embeddings Only (--embedding)", self.embedding, "Enable embedding-only mode.")
+        self.jinja = tk.BooleanVar(value=False)
+        self.create_checkbutton(flags_group, "Jinja (--jinja)", self.jinja, "Enable Jinja2 templating for chat (required for custom templates).")
+        self.no_webui = tk.BooleanVar(value=False)
+        self.create_checkbutton(flags_group, "Disable Web UI (--no-webui)", self.no_webui, "Disable the built-in web interface.")
+        self.verbose = tk.BooleanVar(value=False)
+        self.create_checkbutton(flags_group, "Verbose Logging (-v)", self.verbose, "Enable verbose server logging for debugging.")
 
         # --- Custom Arguments ---
         custom_group = ttk.Labelframe(parent, text="Custom Arguments", padding="10")
         custom_group.pack(fill=tk.X, expand=True, pady=5)
-        
         self.custom_args = tk.StringVar()
         self.create_entry(custom_group, "Custom Arguments:", self.custom_args, "Enter any other command-line arguments, separated by spaces.", row=0)
-    
+
     def setup_output_tab(self, parent):
         """Sets up the server output log view."""
         ttk.Label(parent, text="Server Log Output:").pack(anchor=tk.W, pady=(0, 5))
-        
-        # Use a monospace font for better log readability
         monospace_font = font.Font(family="Consolas", size=10)
-        
         self.output_text = scrolledtext.ScrolledText(parent, height=25, wrap=tk.WORD, font=monospace_font)
         self.output_text.pack(fill=tk.BOTH, expand=True)
-        
         clear_btn = ttk.Button(parent, text="Clear Output", command=self.clear_output)
         clear_btn.pack(pady=(10, 0), anchor=tk.E)
         ToolTip(clear_btn, "Clear all text from the log output window.")
 
     # --- UI Helper Methods ---
-    def create_entry(self, parent, label_text, string_var, tooltip_text, row):
-        """Creates a labeled entry widget with a tooltip."""
+    def create_file_entry(self, parent, label_text, string_var, tooltip_text, file_ext, row):
         label = ttk.Label(parent, text=label_text)
         label.grid(row=row, column=0, sticky=tk.W, padx=5, pady=5)
-        
+        file_path_frame = ttk.Frame(parent)
+        file_path_frame.grid(row=row, column=1, sticky=tk.EW, pady=5)
+        parent.columnconfigure(1, weight=1)
+        entry = ttk.Entry(file_path_frame, textvariable=string_var)
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        browse_btn = ttk.Button(file_path_frame, text="Browse", command=lambda: self.browse_file(string_var, file_ext))
+        browse_btn.pack(side=tk.RIGHT)
+        ToolTip(label, tooltip_text)
+        ToolTip(entry, tooltip_text)
+        ToolTip(browse_btn, f"Select a {file_ext} file.")
+
+    def create_entry(self, parent, label_text, string_var, tooltip_text, row):
+        label = ttk.Label(parent, text=label_text)
+        label.grid(row=row, column=0, sticky=tk.W, padx=5, pady=5)
         entry = ttk.Entry(parent, textvariable=string_var, width=30)
         entry.grid(row=row, column=1, sticky=tk.EW, padx=5, pady=5)
         parent.columnconfigure(1, weight=1)
-        
         ToolTip(label, tooltip_text)
         ToolTip(entry, tooltip_text)
-        return entry
 
+    def create_combobox(self, parent, label_text, string_var, tooltip_text, values, row):
+        label = ttk.Label(parent, text=label_text)
+        label.grid(row=row, column=0, sticky=tk.W, padx=5, pady=5)
+        combobox = ttk.Combobox(parent, textvariable=string_var, values=values)
+        combobox.grid(row=row, column=1, sticky=tk.EW, padx=5, pady=5)
+        parent.columnconfigure(1, weight=1)
+        ToolTip(label, tooltip_text)
+        ToolTip(combobox, tooltip_text)
+        
     def create_slider(self, parent, label_text, int_var, tooltip_text, from_, to, resolution, row):
-        """Creates a labeled slider widget with a tooltip and value display."""
-        # Main frame for the slider row
         slider_frame = ttk.Frame(parent)
         slider_frame.grid(row=row, column=0, columnspan=2, sticky=tk.EW, padx=5, pady=5)
-        parent.columnconfigure(0, weight=1)
-        
-        # Label
+        parent.columnconfigure(1, weight=1)
         label = ttk.Label(slider_frame, text=label_text)
         label.pack(anchor=tk.W)
         ToolTip(label, tooltip_text)
-        
-        # Frame for slider and value
         control_frame = ttk.Frame(slider_frame)
         control_frame.pack(fill=tk.X, pady=(2, 0))
-        
-        # Slider
-        slider = ttk.Scale(control_frame, from_=from_, to=to, orient=tk.HORIZONTAL, 
-                          variable=int_var, command=lambda v: self.update_slider_label(int_var, value_label, resolution))
+        slider = ttk.Scale(control_frame, from_=from_, to=to, orient=tk.HORIZONTAL,
+                           variable=int_var, command=lambda v: self.update_slider_label(int_var, value_label, resolution))
         slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         ToolTip(slider, tooltip_text)
-        
-        # Value label
         value_label = ttk.Label(control_frame, text=str(int_var.get()), width=8, anchor=tk.CENTER, relief=tk.SUNKEN)
         value_label.pack(side=tk.RIGHT)
-        
-        # Set initial value display
         self.update_slider_label(int_var, value_label, resolution)
-        
-        return slider
 
     def update_slider_label(self, int_var, label, resolution):
-        """Updates the value label next to a slider."""
-        # Round to the nearest resolution step
         raw_value = int_var.get()
         rounded_value = round(raw_value / resolution) * resolution
         int_var.set(rounded_value)
         label.config(text=str(rounded_value))
 
     def create_checkbutton(self, parent, text, variable, tooltip_text):
-        """Creates a checkbutton with a tooltip."""
         cb = ttk.Checkbutton(parent, text=text, variable=variable)
         cb.pack(anchor=tk.W, padx=5, pady=2)
         ToolTip(cb, tooltip_text)
-        return cb
-    
+
     def create_button(self, parent, text, command, tooltip_text, state=tk.NORMAL, style=None):
-        """Creates a button with a tooltip."""
         kwargs = {'style': style} if style else {}
         btn = ttk.Button(parent, text=text, command=command, state=state, **kwargs)
         btn.pack(side=tk.LEFT, padx=(0, 5))
@@ -278,16 +312,16 @@ class LlamaServerGUI:
         return btn
 
     # --- Core Functionality ---
-    def browse_model(self):
+    def browse_file(self, string_var, file_ext):
         filename = filedialog.askopenfilename(
-            title="Select Model File",
-            filetypes=[("GGUF files", "*.gguf"), ("All files", "*.*")]
+            title=f"Select {file_ext} File",
+            filetypes=[(f"{file_ext.upper()} files", f"*{file_ext}"), ("All files", "*.*")]
         )
         if filename:
-            self.model_path.set(filename)
-            
+            string_var.set(filename)
+
     def generate_command(self):
-        cmd = ["llama-server"]
+        cmd = ["llama-server"] # Assuming 'server' executable is in the same directory
         
         if not self.model_path.get().strip():
             messagebox.showerror("Error", "Model path is required!")
@@ -295,14 +329,18 @@ class LlamaServerGUI:
         
         cmd.extend(["-m", self.model_path.get().strip()])
         
-        # Add arguments - now using int values for sliders
+        # Add arguments from sliders/IntVar
         cmd.extend(['-c', str(self.ctx_size.get())])
         cmd.extend(['-ngl', str(self.gpu_layers.get())])
         
         # Add other string arguments if their values are not empty
         args = {
-            '--port': self.port, '--n-cpu-moe': self.moe_cpu_layers, 
-            '-t': self.threads, '-b': self.batch_size, '-np': self.parallel
+            '--host': self.host, '--port': self.port, '-a': self.alias,
+            '--api-key': self.api_key, '-t': self.threads, '-b': self.batch_size, 
+            '-np': self.parallel, '--lora': self.lora_path, 
+            '--chat-template': self.chat_template, '-md': self.draft_model_path,
+            '-ngld': self.draft_gpu_layers, '--draft': self.draft_tokens,
+            '--n-cpu-moe': self.moe_cpu_layers # --- NEW PARAMETER ---
         }
         for flag, var in args.items():
             if var.get().strip():
@@ -310,9 +348,10 @@ class LlamaServerGUI:
         
         # Boolean flags
         bool_args = {
-            '--jinja': self.jinja, '-fa': self.flash_attn, '--no-mmap': self.no_mmap,
+            '-fa': self.flash_attn, '--no-mmap': self.no_mmap,
             '--no-webui': self.no_webui, '-cb': self.cont_batching,
-            '--mlock': self.mlock
+            '--mlock': self.mlock, '--embedding': self.embedding,
+            '--jinja': self.jinja, '-v': self.verbose
         }
         for flag, var in bool_args.items():
             if var.get():
@@ -325,48 +364,45 @@ class LlamaServerGUI:
             cmd.extend(self.custom_args.get().strip().split())
             
         return cmd
-        
+
     def show_command(self):
         cmd = self.generate_command()
-        if not cmd:
-            return
-            
-        command_str = " ".join(cmd)
-        
+        if not cmd: return
+        command_str = " ".join(f'"{arg}"' if " " in arg else arg for arg in cmd)
         cmd_window = tk.Toplevel(self.root)
         cmd_window.title("Generated Command")
         cmd_window.geometry("600x200")
-        
         ttk.Label(cmd_window, text="Generated Command:", padding="10 10 0 5").pack(anchor=tk.W)
-        
         cmd_text = scrolledtext.ScrolledText(cmd_window, height=5, wrap=tk.WORD)
         cmd_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
         cmd_text.insert(tk.END, command_str)
         cmd_text.config(state=tk.DISABLED)
-        
         def copy_command():
             cmd_window.clipboard_clear()
             cmd_window.clipboard_append(command_str)
             messagebox.showinfo("Copied", "Command copied to clipboard!", parent=cmd_window)
-            
         ttk.Button(cmd_window, text="Copy to Clipboard", command=copy_command).pack(pady=10)
-            
+
     def start_server(self):
-        if self.is_running:
-            return
-            
+        if self.is_running: return
         cmd = self.generate_command()
-        if not cmd:
-            return
+        if not cmd: return
             
         self.output_text.delete(1.0, tk.END)
-        self.update_output(f"▶ Starting server with command:\n{' '.join(cmd)}\n\n" + "="*80 + "\n")
+        command_str = " ".join(f'"{arg}"' if " " in arg else arg for arg in cmd)
+        self.update_output(f"▶ Starting server with command:\n{command_str}\n\n" + "="*80 + "\n")
         
         def run_server():
             try:
+                # On Windows, prevent the console window from appearing
+                startupinfo = None
+                if os.name == 'nt':
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
                 self.server_process = subprocess.Popen(
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                    universal_newlines=False, bufsize=1
+                    universal_newlines=False, bufsize=1, startupinfo=startupinfo
                 )
                 
                 for line_bytes in iter(self.server_process.stdout.readline, b''):
@@ -374,12 +410,13 @@ class LlamaServerGUI:
                         line = line_bytes.decode('utf-8')
                     except UnicodeDecodeError:
                         line = line_bytes.decode('latin-1', errors='replace')
-                    
                     self.root.after(0, self.update_output, line)
-
                 self.server_process.wait()
                 self.root.after(0, self.server_stopped)
                 
+            except FileNotFoundError:
+                self.root.after(0, self.update_output, f"\n❌ Error: The 'server' executable was not found. Make sure it's in the same directory as this script or in your system's PATH.\n")
+                self.root.after(0, self.server_stopped)
             except Exception as e:
                 self.root.after(0, self.update_output, f"\n❌ Error starting server: {e}\n")
                 self.root.after(0, self.server_stopped)
@@ -399,31 +436,41 @@ class LlamaServerGUI:
                 self.update_output("\n" + "="*80 + "\n⏹️ Server stop requested...\n")
             except Exception as e:
                 self.update_output(f"\n❌ Error stopping server: {e}\n")
-                
+
     def server_stopped(self):
         self.is_running = False
         self.start_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
         self.browser_button.config(state=tk.DISABLED)
         self.update_output("⏹️ Server process has terminated.\n")
-        
+
     def update_output(self, text):
         self.output_text.insert(tk.END, text)
         self.output_text.see(tk.END)
-        
+
     def clear_output(self):
         self.output_text.delete(1.0, tk.END)
-        
+
     def save_config(self):
         config = {
-            'model_path': self.model_path.get(), 'ctx_size': self.ctx_size.get(),
-            'gpu_layers': self.gpu_layers.get(), 'port': self.port.get(),
-            'jinja': self.jinja.get(), 'flash_attn': self.flash_attn.get(),
-            'no_mmap': self.no_mmap.get(), 'no_webui': self.no_webui.get(),
-            'moe_cpu_layers': self.moe_cpu_layers.get(), 'threads': self.threads.get(),
-            'batch_size': self.batch_size.get(), 'parallel': self.parallel.get(),
-            'cont_batching': self.cont_batching.get(), 'mlock': self.mlock.get(),
-            'numa': self.numa.get(), 'custom_args': self.custom_args.get()
+            # Main Tab
+            'model_path': self.model_path.get(), 'alias': self.alias.get(),
+            'host': self.host.get(), 'port': self.port.get(), 'api_key': self.api_key.get(),
+            # Tuning Tab
+            'ctx_size': self.ctx_size.get(), 'gpu_layers': self.gpu_layers.get(),
+            'threads': self.threads.get(), 'batch_size': self.batch_size.get(),
+            'parallel': self.parallel.get(), 'cont_batching': self.cont_batching.get(),
+            'flash_attn': self.flash_attn.get(), 'mlock': self.mlock.get(),
+            'no_mmap': self.no_mmap.get(), 'numa': self.numa.get(),
+            'moe_cpu_layers': self.moe_cpu_layers.get(), # --- NEW PARAMETER ---
+            # Features Tab
+            'chat_template': self.chat_template.get(), 'lora_path': self.lora_path.get(),
+            'draft_model_path': self.draft_model_path.get(), 
+            'draft_gpu_layers': self.draft_gpu_layers.get(),
+            'draft_tokens': self.draft_tokens.get(),
+            'embedding': self.embedding.get(), 'jinja': self.jinja.get(),
+            'no_webui': self.no_webui.get(), 'verbose': self.verbose.get(),
+            'custom_args': self.custom_args.get()
         }
         try:
             with open(self.config_file, 'w') as f:
@@ -431,41 +478,54 @@ class LlamaServerGUI:
             messagebox.showinfo("Success", f"Configuration saved to {self.config_file}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save configuration: {e}")
-            
+
     def load_config(self):
-        if not os.path.exists(self.config_file):
-            return
+        if not os.path.exists(self.config_file): return
         try:
             with open(self.config_file, 'r') as f:
                 config = json.load(f)
+            # Main Tab
             self.model_path.set(config.get('model_path', ''))
+            self.alias.set(config.get('alias', ''))
+            self.host.set(config.get('host', '127.0.0.1'))
+            self.port.set(config.get('port', '8080'))
+            self.api_key.set(config.get('api_key', ''))
+            # Tuning Tab
             self.ctx_size.set(config.get('ctx_size', 4096))
             self.gpu_layers.set(config.get('gpu_layers', 99))
-            self.port.set(config.get('port', '8080'))
-            self.jinja.set(config.get('jinja', True))
-            self.flash_attn.set(config.get('flash_attn', False))
-            self.no_mmap.set(config.get('no_mmap', False))
-            self.no_webui.set(config.get('no_webui', False))
-            self.moe_cpu_layers.set(config.get('moe_cpu_layers', ''))
             self.threads.set(config.get('threads', ''))
             self.batch_size.set(config.get('batch_size', ''))
             self.parallel.set(config.get('parallel', ''))
-            self.cont_batching.set(config.get('cont_batching', True))
+            self.cont_batching.set(config.get('cont_batching', False))
+            self.flash_attn.set(config.get('flash_attn', False))
             self.mlock.set(config.get('mlock', False))
+            self.no_mmap.set(config.get('no_mmap', False))
             self.numa.set(config.get('numa', False))
+            self.moe_cpu_layers.set(config.get('moe_cpu_layers', '')) # --- NEW PARAMETER ---
+            # Features Tab
+            self.chat_template.set(config.get('chat_template', ''))
+            self.lora_path.set(config.get('lora_path', ''))
+            self.draft_model_path.set(config.get('draft_model_path', ''))
+            self.draft_gpu_layers.set(config.get('draft_gpu_layers', ''))
+            self.draft_tokens.set(config.get('draft_tokens', ''))
+            self.embedding.set(config.get('embedding', False))
+            self.jinja.set(config.get('jinja', False))
+            self.no_webui.set(config.get('no_webui', False))
+            self.verbose.set(config.get('verbose', False))
             self.custom_args.set(config.get('custom_args', ''))
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load configuration: {e}")
 
     def open_browser(self):
-        """Opens the web browser at the server's port."""
-        url = f"http://localhost:{self.port.get().strip()}"
+        """Opens the web browser at the server's address."""
+        host = self.host.get().strip()
+        if host == '0.0.0.0': host = 'localhost'
+        url = f"http://{host}:{self.port.get().strip()}"
         try:
             webbrowser.open(url)
             self.update_output(f"🌐 Opened browser at {url}\n")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open browser: {e}")
-
 
 def main():
     root = tk.Tk()
@@ -486,11 +546,9 @@ def main():
         )
         if response is True:  # Yes
             app.stop_server()
-            # Give the server a moment to shut down before destroying the window
             root.after(1000, root.destroy)
         elif response is False:  # No
             root.destroy()
-        # On Cancel, do nothing
             
     root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
