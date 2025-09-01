@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext, font
 import subprocess
@@ -535,8 +536,15 @@ class LlamaServerGUI:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open browser: {e}")
 
+def resource_path(filename):
+    """Get absolute path to resource, works for dev and for PyInstaller bundle"""
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.abspath("."), filename)
+
 def main():
     root = tk.Tk()
+    root.iconbitmap(resource_path("llama-cpp.ico"))
     app = LlamaServerGUI(root)
     
     def on_closing():
