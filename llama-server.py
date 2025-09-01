@@ -55,11 +55,23 @@ class LlamaServerGUI:
         self.server_process = None
         self.is_running = False
 
-        # Configuration file path
-        self.config_file = "llama_server_config.json"
+        # Configuration file path - use user's directory for portable executable
+        self.config_file = self.get_config_path("llama_server_config.json")
 
         self.setup_ui()
         self.load_config()
+
+    def get_config_path(self, filename):
+        """Get the path for config file that works with PyInstaller"""
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable
+            # Use the directory where the executable is located
+            app_dir = os.path.dirname(sys.executable)
+        else:
+            # Running as script
+            app_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        return os.path.join(app_dir, filename)
 
     def setup_ui(self):
         """Sets up the main UI layout, including notebook and control buttons."""
@@ -422,7 +434,7 @@ class LlamaServerGUI:
                 self.root.after(0, self.server_stopped)
                 
             except FileNotFoundError:
-                self.root.after(0, self.update_output, f"\n❌ Error: The 'server' executable was not found. Make sure it's in the same directory as this script or in your system's PATH.\n")
+                self.root.after(0, self.update_output, f"\n❌ Error: The 'llama-server' executable was not found. Make sure it's in the same directory as this script or in your system's PATH.\n")
                 self.root.after(0, self.server_stopped)
             except Exception as e:
                 self.root.after(0, self.update_output, f"\n❌ Error starting server: {e}\n")
@@ -538,13 +550,24 @@ class LlamaServerGUI:
 
 def resource_path(filename):
     """Get absolute path to resource, works for dev and for PyInstaller bundle"""
-    if hasattr(sys, "_MEIPASS"):
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable
         return os.path.join(sys._MEIPASS, filename)
+    # Running as script
     return os.path.join(os.path.abspath("."), filename)
 
 def main():
     root = tk.Tk()
-    root.iconbitmap(resource_path("llama-cpp.ico"))
+    
+    # Try to set icon - handle gracefully if it doesn't exist
+    try:
+        icon_path = resource_path("llama-cpp.ico")
+        if os.path.exists(icon_path):
+            root.iconbitmap(icon_path)
+    except Exception:
+        # Icon not found or couldn't load - continue without it
+        pass
+    
     app = LlamaServerGUI(root)
     
     def on_closing():
