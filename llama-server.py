@@ -115,6 +115,12 @@ class LlamaServerGUI:
         self.alias = tk.StringVar()
         self.create_entry(model_group, "Model Alias (-a):", self.alias, "Set an alias for the model, used in API calls.", row=1)
 
+        # --- Multimodal ---
+        mm_group = ttk.Labelframe(parent, text="Multimodal", padding="10")
+        mm_group.pack(fill=tk.X, pady=5)
+        self.mmproj_path = tk.StringVar()
+        self.create_file_entry(mm_group, "Projector Path (--mmproj):", self.mmproj_path, "Path to a multimodal projector file. Optional if using a Hugging Face repo that includes one.", ".gguf", row=0)
+
         # --- Server Configuration ---
         server_group = ttk.Labelframe(parent, text="Server Configuration", padding="10")
         server_group.pack(fill=tk.X, pady=5)
@@ -337,10 +343,10 @@ class LlamaServerGUI:
         args = {
             '--host': self.host, '--port': self.port, '-a': self.alias,
             '--api-key': self.api_key, '-t': self.threads, '-b': self.batch_size, 
-            '-np': self.parallel, '--lora': self.lora_path, 
-            '--chat-template': self.chat_template, '-md': self.draft_model_path,
-            '-ngld': self.draft_gpu_layers, '--draft': self.draft_tokens,
-            '--n-cpu-moe': self.moe_cpu_layers # --- NEW PARAMETER ---
+            '-np': self.parallel, '--lora': self.lora_path,
+            '--mmproj': self.mmproj_path, '--chat-template': self.chat_template,
+            '-md': self.draft_model_path, '-ngld': self.draft_gpu_layers,
+            '--draft': self.draft_tokens, '--n-cpu-moe': self.moe_cpu_layers
         }
         for flag, var in args.items():
             if var.get().strip():
@@ -465,6 +471,7 @@ class LlamaServerGUI:
             'moe_cpu_layers': self.moe_cpu_layers.get(), # --- NEW PARAMETER ---
             # Features Tab
             'chat_template': self.chat_template.get(), 'lora_path': self.lora_path.get(),
+            'mmproj_path': self.mmproj_path.get(),
             'draft_model_path': self.draft_model_path.get(), 
             'draft_gpu_layers': self.draft_gpu_layers.get(),
             'draft_tokens': self.draft_tokens.get(),
@@ -505,6 +512,7 @@ class LlamaServerGUI:
             # Features Tab
             self.chat_template.set(config.get('chat_template', ''))
             self.lora_path.set(config.get('lora_path', ''))
+            self.mmproj_path.set(config.get('mmproj_path', ''))
             self.draft_model_path.set(config.get('draft_model_path', ''))
             self.draft_gpu_layers.set(config.get('draft_gpu_layers', ''))
             self.draft_tokens.set(config.get('draft_tokens', ''))
