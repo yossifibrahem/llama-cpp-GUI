@@ -1,0 +1,19 @@
+llama-server -m gpt-oss-20b-MXFP4.gguf --ctx-size 32768 --jinja -ngl 99 -fa --n-cpu-moe 4 --no-mmap --port 4321 --no-webui
+
+
+write a python GUI application that run the command and manage those parameters in the GUI.
+
+Most important parameters:
+1. `-m model-path.gguf`: model path file.
+2. `-c N` or `--ctx size N`: Specify the context size to use. More context requires more memory.
+3. `--jinja`: boolean (ON by default).
+4. -ngl: number of layers offloaded to GPU. nemerical value (default 99).
+5. `-fa`: boolean (off by default).
+6. `--n-cpu-moe N`: Number of MoE layers N to keep on the CPU. This is used in hardware configs that cannot fit the models fully on the GPU. The specific value depends on your memory resources and finding the optimal value requires some experimentation
+7. `--no-mmap`: boolean (off by default).
+8. `--port`: (default 8080).
+9. `--no-webui`: boolean (OFF by default).
+
+
+Example:
+`llama-server -m my-model.gguf --ctx-size 32768 --jinja -ngl 99 -fa --n-cpu-moe 4 --no-mmap --port 4321 --no-webui`
