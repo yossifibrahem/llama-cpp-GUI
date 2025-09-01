@@ -4,6 +4,7 @@ import subprocess
 import threading
 import os
 import json
+import webbrowser 
 
 class ToolTip:
     """
@@ -95,6 +96,7 @@ class LlamaServerGUI:
         # Right-aligned buttons
         right_button_frame = ttk.Frame(control_frame)
         right_button_frame.pack(side=tk.RIGHT)
+        self.browser_button = self.create_button(right_button_frame, "Open Browser 🌐", self.open_browser, "Open the web browser to access the server.", state=tk.DISABLED)
         self.stop_button = self.create_button(right_button_frame, "Stop Server ⏹️", self.stop_server, "Stop the currently running server process.", state=tk.DISABLED)
         self.start_button = self.create_button(right_button_frame, "Start Server ▶️", self.start_server, "Start the server with the current settings.", style="Accent.TButton")
 
@@ -117,13 +119,15 @@ class LlamaServerGUI:
         browse_btn.pack(side=tk.RIGHT)
         ToolTip(browse_btn, "Open a file dialog to select a .gguf model.")
 
-        # Context Size
-        self.ctx_size = tk.StringVar(value="4096")
-        self.create_entry(model_group, "Context Size (-c):", self.ctx_size, "The context size (sequence length) for the model.", row=1)
+        # Context Size Slider
+        self.ctx_size = tk.IntVar(value=4096)
+        self.create_slider(model_group, "Context Size (-c):", self.ctx_size, "The context size (sequence length) for the model.", 
+                          from_=0, to=131072, resolution=1024, row=1)
 
-        # GPU Layers
-        self.gpu_layers = tk.StringVar(value="99")
-        self.create_entry(model_group, "GPU Layers (-ngl):", self.gpu_layers, "Number of model layers to offload to the GPU. 99 for all.", row=2)
+        # GPU Layers Slider
+        self.gpu_layers = tk.IntVar(value=99)
+        self.create_slider(model_group, "GPU Layers (-ngl):", self.gpu_layers, "Number of model layers to offload to the GPU. 99 for all.", 
+                          from_=0, to=99, resolution=1, row=2)
 
         # --- Server Configuration ---
         server_group = ttk.Labelframe(parent, text="Server Configuration", padding="10")
@@ -147,13 +151,7 @@ class LlamaServerGUI:
         
         self.no_webui = tk.BooleanVar(value=False)
         self.create_checkbutton(flags_group, "Disable Web UI (--no-webui)", self.no_webui, "Disable the built-in web interface.")
-
-        # --- Mixture of Experts (MoE) ---
-        moe_group = ttk.Labelframe(parent, text="Mixture of Experts (MoE)", padding="10")
-        moe_group.pack(fill=tk.X, pady=5)
-        
-        self.moe_cpu_layers = tk.StringVar(value="")
-        self.create_entry(moe_group, "MoE CPU Layers (--n-cpu-moe):", self.moe_cpu_layers, "Number of MoE layers to run on the CPU (optional).", row=0)
+  
 
     def setup_advanced_tab(self, parent):
         """Sets up the widgets in the 'Advanced' tab."""
@@ -182,6 +180,13 @@ class LlamaServerGUI:
         
         self.numa = tk.BooleanVar(value=False)
         self.create_checkbutton(adv_flags_group, "NUMA Optimizations (--numa distribute)", self.numa, "Enable NUMA-aware optimizations.")
+
+        # --- Mixture of Experts (MoE) ---
+        moe_group = ttk.Labelframe(parent, text="Mixture of Experts (MoE)", padding="10")
+        moe_group.pack(fill=tk.X, pady=5)
+        
+        self.moe_cpu_layers = tk.StringVar(value="")
+        self.create_entry(moe_group, "MoE CPU Layers (--n-cpu-moe):", self.moe_cpu_layers, "Number of MoE layers to run on the CPU (optional).", row=0)
 
         # --- Custom Arguments ---
         custom_group = ttk.Labelframe(parent, text="Custom Arguments", padding="10")
@@ -218,6 +223,45 @@ class LlamaServerGUI:
         ToolTip(entry, tooltip_text)
         return entry
 
+    def create_slider(self, parent, label_text, int_var, tooltip_text, from_, to, resolution, row):
+        """Creates a labeled slider widget with a tooltip and value display."""
+        # Main frame for the slider row
+        slider_frame = ttk.Frame(parent)
+        slider_frame.grid(row=row, column=0, columnspan=2, sticky=tk.EW, padx=5, pady=5)
+        parent.columnconfigure(0, weight=1)
+        
+        # Label
+        label = ttk.Label(slider_frame, text=label_text)
+        label.pack(anchor=tk.W)
+        ToolTip(label, tooltip_text)
+        
+        # Frame for slider and value
+        control_frame = ttk.Frame(slider_frame)
+        control_frame.pack(fill=tk.X, pady=(2, 0))
+        
+        # Slider
+        slider = ttk.Scale(control_frame, from_=from_, to=to, orient=tk.HORIZONTAL, 
+                          variable=int_var, command=lambda v: self.update_slider_label(int_var, value_label, resolution))
+        slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        ToolTip(slider, tooltip_text)
+        
+        # Value label
+        value_label = ttk.Label(control_frame, text=str(int_var.get()), width=8, anchor=tk.CENTER, relief=tk.SUNKEN)
+        value_label.pack(side=tk.RIGHT)
+        
+        # Set initial value display
+        self.update_slider_label(int_var, value_label, resolution)
+        
+        return slider
+
+    def update_slider_label(self, int_var, label, resolution):
+        """Updates the value label next to a slider."""
+        # Round to the nearest resolution step
+        raw_value = int_var.get()
+        rounded_value = round(raw_value / resolution) * resolution
+        int_var.set(rounded_value)
+        label.config(text=str(rounded_value))
+
     def create_checkbutton(self, parent, text, variable, tooltip_text):
         """Creates a checkbutton with a tooltip."""
         cb = ttk.Checkbutton(parent, text=text, variable=variable)
@@ -251,11 +295,14 @@ class LlamaServerGUI:
         
         cmd.extend(["-m", self.model_path.get().strip()])
         
-        # Add arguments if their values are not empty or default
+        # Add arguments - now using int values for sliders
+        cmd.extend(['-c', str(self.ctx_size.get())])
+        cmd.extend(['-ngl', str(self.gpu_layers.get())])
+        
+        # Add other string arguments if their values are not empty
         args = {
-            '-c': self.ctx_size, '-ngl': self.gpu_layers, '--port': self.port,
-            '--n-cpu-moe': self.moe_cpu_layers, '-t': self.threads,
-            '-b': self.batch_size, '-np': self.parallel
+            '--port': self.port, '--n-cpu-moe': self.moe_cpu_layers, 
+            '-t': self.threads, '-b': self.batch_size, '-np': self.parallel
         }
         for flag, var in args.items():
             if var.get().strip():
@@ -343,7 +390,8 @@ class LlamaServerGUI:
         self.is_running = True
         self.start_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
-            
+        self.browser_button.config(state=tk.NORMAL)
+
     def stop_server(self):
         if self.server_process and self.is_running:
             try:
@@ -356,6 +404,7 @@ class LlamaServerGUI:
         self.is_running = False
         self.start_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
+        self.browser_button.config(state=tk.DISABLED)
         self.update_output("⏹️ Server process has terminated.\n")
         
     def update_output(self, text):
@@ -390,8 +439,8 @@ class LlamaServerGUI:
             with open(self.config_file, 'r') as f:
                 config = json.load(f)
             self.model_path.set(config.get('model_path', ''))
-            self.ctx_size.set(config.get('ctx_size', '4096'))
-            self.gpu_layers.set(config.get('gpu_layers', '99'))
+            self.ctx_size.set(config.get('ctx_size', 4096))
+            self.gpu_layers.set(config.get('gpu_layers', 99))
             self.port.set(config.get('port', '8080'))
             self.jinja.set(config.get('jinja', True))
             self.flash_attn.set(config.get('flash_attn', False))
@@ -407,6 +456,16 @@ class LlamaServerGUI:
             self.custom_args.set(config.get('custom_args', ''))
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load configuration: {e}")
+
+    def open_browser(self):
+        """Opens the web browser at the server's port."""
+        url = f"http://localhost:{self.port.get().strip()}"
+        try:
+            webbrowser.open(url)
+            self.update_output(f"🌐 Opened browser at {url}\n")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open browser: {e}")
+
 
 def main():
     root = tk.Tk()
