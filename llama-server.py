@@ -6,6 +6,13 @@ import threading
 import os
 import json
 import webbrowser
+try:
+    import pystray
+    from pystray import MenuItem as item
+    from PIL import Image, ImageDraw
+    TRAY_AVAILABLE = True
+except ImportError:
+    TRAY_AVAILABLE = False
 
 class ToolTip:
     """
@@ -55,6 +62,10 @@ class LlamaServerGUI:
         self.server_process = None
         self.is_running = False
 
+        # System tray setup
+        self.tray_icon = None
+        self.is_in_tray = False
+
         # Configuration file path - use user's directory for portable executable
         self.config_file = self.get_config_path("llama_server_config.json")
 
@@ -72,6 +83,98 @@ class LlamaServerGUI:
             app_dir = os.path.dirname(os.path.abspath(__file__))
         
         return os.path.join(app_dir, filename)
+
+    def create_tray_icon(self):
+        """Create a system tray icon"""
+        if not TRAY_AVAILABLE:
+            return None
+        
+        image = self.load_app_icon()
+        
+        # Create menu items
+        menu_items = [
+            item('Show Window', self.show_window),
+            item('Open Browser', self.open_browser_from_tray, enabled=lambda item: self.is_running),
+            pystray.Menu.SEPARATOR,
+            item('Stop Server & Exit', self.quit_application),
+        ]
+        
+        # Create the tray icon
+        icon = pystray.Icon("llama_server", image, "LLaMA Server", menu=pystray.Menu(*menu_items))
+        return icon
+
+    def load_app_icon(self):
+        """Load the app icon for system tray use"""
+        try:
+            # Try to load the same icon used for the window
+            icon_path = resource_path("llama-cpp.ico")
+            if os.path.exists(icon_path):
+                # Load and resize the icon for tray use
+                image = Image.open(icon_path)
+                # Convert to RGBA if not already
+                if image.mode != 'RGBA':
+                    image = image.convert('RGBA')
+                # Resize to appropriate tray size (16x16 or 32x32)
+                image = image.resize((32, 32), Image.Resampling.LANCZOS)
+                return image
+        except Exception as e:
+            print(f"Could not load app icon for tray: {e}")
+        
+        return None
+
+    def show_in_tray(self):
+        """Minimize the application to system tray"""
+        if not TRAY_AVAILABLE:
+            messagebox.showwarning("System Tray", "System tray functionality requires 'pystray' and 'Pillow' packages.\nInstall them with: pip install pystray Pillow")
+            return False
+            
+        self.root.withdraw()  # Hide the window
+        self.is_in_tray = True
+        
+        if not self.tray_icon:
+            self.tray_icon = self.create_tray_icon()
+        
+        # Run tray icon in a separate thread
+        def run_tray():
+            try:
+                self.tray_icon.run()
+            except Exception as e:
+                print(f"Tray icon error: {e}")
+        
+        tray_thread = threading.Thread(target=run_tray, daemon=True)
+        tray_thread.start()
+        return True
+
+    def show_window(self, icon=None, item=None):
+        """Show the main window from tray"""
+        self.is_in_tray = False
+        self.root.deiconify()  # Show the window
+        self.root.lift()  # Bring to front
+        self.root.focus_force()
+        
+        # Stop the tray icon
+        if self.tray_icon:
+            self.tray_icon.stop()
+            self.tray_icon = None
+
+    def open_browser_from_tray(self, icon=None, item=None):
+        """Open browser from tray menu"""
+        if self.is_running:
+            self.open_browser()
+
+    def quit_application(self, icon=None, item=None):
+        """Stop server and quit the application"""
+        if self.server_process and self.is_running:
+            try:
+                self.server_process.terminate()
+            except Exception:
+                pass
+        
+        if self.tray_icon:
+            self.tray_icon.stop()
+        
+        # Use after_idle to ensure clean shutdown
+        self.root.after_idle(self.root.quit)
 
     def setup_ui(self):
         """Sets up the main UI layout, including notebook and control buttons."""
@@ -434,10 +537,10 @@ class LlamaServerGUI:
                 self.root.after(0, self.server_stopped)
                 
             except FileNotFoundError:
-                self.root.after(0, self.update_output, f"\n❌ Error: The 'llama-server' executable was not found. Make sure it's in the same directory as this script or in your system's PATH.\n")
+                self.root.after(0, self.update_output, f"\n⚠ Error: The 'llama-server' executable was not found. Make sure it's in the same directory as this script or in your system's PATH.\n")
                 self.root.after(0, self.server_stopped)
             except Exception as e:
-                self.root.after(0, self.update_output, f"\n❌ Error starting server: {e}\n")
+                self.root.after(0, self.update_output, f"\n⚠ Error starting server: {e}\n")
                 self.root.after(0, self.server_stopped)
         
         server_thread = threading.Thread(target=run_server, daemon=True)
@@ -454,7 +557,7 @@ class LlamaServerGUI:
                 self.server_process.terminate()
                 self.update_output("\n" + "="*80 + "\n⏹️ Server stop requested...\n")
             except Exception as e:
-                self.update_output(f"\n❌ Error stopping server: {e}\n")
+                self.update_output(f"\n⚠ Error stopping server: {e}\n")
 
     def server_stopped(self):
         self.is_running = False
@@ -578,18 +681,43 @@ def main():
         response = messagebox.askyesnocancel(
             "Server Still Running",
             "The LLaMA server is active. Do you want to stop it before exiting?",
-            detail="• Yes: Stop the server and exit.\n"
-                   "• No: Exit and leave the server running in the background.\n"
-                   "• Cancel: Return to the application.",
+            detail="• Yes: Stop Server and Exit.\n"
+                   "• No: Minimize to Tray\n"
+                   "• Cancel: Return to Application",
             icon=messagebox.WARNING
         )
-        if response is True:  # Yes
+        if response is True:  # Yes - Stop server and exit
             app.stop_server()
             root.after(1000, root.destroy)
-        elif response is False:  # No
-            root.destroy()
+        elif response is False:  # No - Minimize to tray
+            if app.show_in_tray():
+                # Successfully minimized to tray
+                pass
+            else:
+                # Tray not available, ask user what to do
+                fallback = messagebox.askyesno(
+                    "System Tray Unavailable",
+                    "System tray functionality is not available.\n\n"
+                    "Do you want to exit anyway and leave the server running?",
+                    detail="The server process will continue running in the background.",
+                    icon=messagebox.QUESTION
+                )
+                if fallback:
+                    root.destroy()
+        # If response is None (Cancel), do nothing and return to app
             
     root.protocol("WM_DELETE_WINDOW", on_closing)
+    
+    # Show warning if tray dependencies are missing
+    if not TRAY_AVAILABLE:
+        root.after(1000, lambda: messagebox.showinfo(
+            "System Tray",
+            "For full functionality including system tray support, install:\n\n"
+            "pip install pystray Pillow\n\n"
+            "This will allow the app to minimize to the system tray when a server is running.",
+            icon=messagebox.INFO
+        ))
+    
     root.mainloop()
 
 if __name__ == "__main__":
