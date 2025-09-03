@@ -69,6 +69,9 @@ class LlamaServerGUI:
         # Configuration file path - use user's directory for portable executable
         self.config_file = self.get_config_path("llama_server_config.json")
 
+        # Store slider references for updating
+        self.slider_refs = {}
+
         self.setup_ui()
         self.load_config()
 
@@ -412,6 +415,16 @@ class LlamaServerGUI:
         ToolTip(slider, tooltip_text)
         value_label = ttk.Label(control_frame, text=str(int_var.get()), width=8, anchor=tk.CENTER, relief=tk.SUNKEN)
         value_label.pack(side=tk.RIGHT)
+        
+        # Store references for later updates
+        slider_key = f"{label_text}_{id(int_var)}"
+        self.slider_refs[slider_key] = {
+            'var': int_var,
+            'slider': slider,
+            'label': value_label,
+            'resolution': resolution
+        }
+        
         self.update_slider_label(int_var, value_label, resolution)
 
     def update_slider_label(self, int_var, label, resolution):
@@ -419,6 +432,19 @@ class LlamaServerGUI:
         rounded_value = round(raw_value / resolution) * resolution
         int_var.set(rounded_value)
         label.config(text=str(rounded_value))
+
+    def update_all_sliders(self):
+        """Update all slider visuals after loading config"""
+        for key, refs in self.slider_refs.items():
+            var = refs['var']
+            slider = refs['slider']
+            label = refs['label']
+            resolution = refs['resolution']
+            
+            # Update the slider position
+            slider.set(var.get())
+            # Update the label
+            self.update_slider_label(var, label, resolution)
 
     def create_checkbutton(self, parent, text, variable, tooltip_text):
         cb = ttk.Checkbutton(parent, text=text, variable=variable)
@@ -636,6 +662,10 @@ class LlamaServerGUI:
             self.no_webui.set(config.get('no_webui', False))
             self.verbose.set(config.get('verbose', False))
             self.custom_args.set(config.get('custom_args', ''))
+            
+            # Update slider visuals after loading config
+            self.update_all_sliders()
+            
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load configuration: {e}")
 
