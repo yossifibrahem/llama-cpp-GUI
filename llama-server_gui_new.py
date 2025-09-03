@@ -25,8 +25,8 @@ class LlamaServerGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("LLaMA Server GUI Manager")
-        self.root.geometry("1100x700")
-        self.root.minsize(1100, 700)
+        self.root.geometry("1080x720")
+        self.root.minsize(1080, 720)
 
         # Server process management
         self.server_process = None
@@ -64,6 +64,25 @@ class LlamaServerGUI:
         main_container = ttk.Frame(self.root, padding="10")
         main_container.pack(fill=tk.BOTH, expand=True)
 
+        # --- Control Buttons (Packed FIRST and anchored to the BOTTOM) ---
+        control_frame = ttk.Frame(main_container)
+        control_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(10, 0))
+
+        # Left-aligned buttons
+        left_button_frame = ttk.Frame(control_frame)
+        left_button_frame.pack(side=tk.LEFT)
+        self.create_button(left_button_frame, "Save Config 💾", self.save_config, "Save the current settings.", bootstyle="secondary")
+        self.create_button(left_button_frame, "Load Config 📂", self.load_config, "Load settings from the config file.", bootstyle="secondary")
+        self.create_button(left_button_frame, "Generate Command ⚡", self.show_command, "Show the final command to be executed.", bootstyle="info")
+
+        # Right-aligned buttons
+        right_button_frame = ttk.Frame(control_frame)
+        right_button_frame.pack(side=tk.RIGHT)
+        self.browser_button = self.create_button(right_button_frame, "Open Browser 🌐", self.open_browser, "Access the server web UI.", state=tk.DISABLED, bootstyle="primary-outline")
+        self.stop_button = self.create_button(right_button_frame, "Stop Server ⏹️", self.stop_server, "Stop the running server process.", state=tk.DISABLED, bootstyle="danger")
+        self.start_button = self.create_button(right_button_frame, "Start Server ▶️", self.start_server, "Start the server with current settings.", bootstyle="success")
+
+        # --- Notebook (Packed SECOND to fill the remaining space) ---
         notebook = ttk.Notebook(main_container, bootstyle="primary")
         notebook.pack(fill=tk.BOTH, expand=True)
 
@@ -90,23 +109,6 @@ class LlamaServerGUI:
         self.setup_server_api_tab(server_api_frame)
         self.setup_output_tab(output_frame)
 
-        # --- Control Buttons ---
-        control_frame = ttk.Frame(main_container)
-        control_frame.pack(fill=tk.X, pady=(10, 0))
-
-        # Left-aligned buttons
-        left_button_frame = ttk.Frame(control_frame)
-        left_button_frame.pack(side=tk.LEFT)
-        self.create_button(left_button_frame, "Save Config 💾", self.save_config, "Save the current settings.", bootstyle="secondary")
-        self.create_button(left_button_frame, "Load Config 📂", self.load_config, "Load settings from the config file.", bootstyle="secondary")
-        self.create_button(left_button_frame, "Generate Command ⚡", self.show_command, "Show the final command to be executed.", bootstyle="info")
-
-        # Right-aligned buttons
-        right_button_frame = ttk.Frame(control_frame)
-        right_button_frame.pack(side=tk.RIGHT)
-        self.browser_button = self.create_button(right_button_frame, "Open Browser 🌐", self.open_browser, "Access the server web UI.", state=tk.DISABLED, bootstyle="primary-outline")
-        self.stop_button = self.create_button(right_button_frame, "Stop Server ⏹️", self.stop_server, "Stop the running server process.", state=tk.DISABLED, bootstyle="danger")
-        self.start_button = self.create_button(right_button_frame, "Start Server ▶️", self.start_server, "Start the server with current settings.", bootstyle="success")
 
     # --- Tab Setup Methods ---
     def setup_model_tab(self, parent):
@@ -403,7 +405,7 @@ class LlamaServerGUI:
 
         for arg_item in self.custom_arguments:
             row_frame = ttk.Frame(self.custom_args_list_frame, padding=(5, 3))
-            row_frame.pack(fill=X, expand=True)
+            row_frame.pack(fill=X, expand=True, padx=(0, 5)) 
 
             is_enabled_var = tk.BooleanVar(value=arg_item.get("enabled", True))
             
@@ -414,10 +416,37 @@ class LlamaServerGUI:
             toggle.pack(side=LEFT, padx=(0, 10))
 
             label = ttk.Label(row_frame, text=arg_item["value"])
+            delete_btn = ttk.Button(row_frame, text="Delete", bootstyle="danger-link", command=lambda item=arg_item: self.delete_custom_argument(item))
+            
+            # Pack order matters: label is packed after edit logic is set up.
+            delete_btn.pack(side=RIGHT, padx=(10, 0))
+            
+            ### ADDED ### Logic for double-click-to-edit
+            def start_edit(event, item, lbl, frame, del_btn):
+                lbl.pack_forget() # Hide the label
+
+                entry_var = tk.StringVar(value=item["value"])
+                edit_entry = ttk.Entry(frame, textvariable=entry_var)
+                edit_entry.pack(side=LEFT, fill=X, expand=True, before=del_btn)
+                edit_entry.focus_set()
+                edit_entry.selection_range(0, tk.END)
+
+                def save_edit(event):
+                    new_value = entry_var.get().strip()
+                    if new_value:
+                        item["value"] = new_value
+                        lbl.config(text=new_value)
+                    
+                    edit_entry.destroy()
+                    lbl.pack(side=LEFT, fill=X, expand=True, before=del_btn) # Show the label again
+
+                edit_entry.bind("<Return>", save_edit)
+                edit_entry.bind("<FocusOut>", save_edit)
+
+            label.bind("<Double-1>", lambda e, item=arg_item, lbl=label, frame=row_frame, btn=delete_btn: start_edit(e, item, lbl, frame, btn))
+            ToolTip(label, "Double-click to edit this argument.")
             label.pack(side=LEFT, fill=X, expand=True, anchor=W)
 
-            delete_btn = ttk.Button(row_frame, text="Delete", bootstyle="danger-link", command=lambda item=arg_item: self.delete_custom_argument(item))
-            delete_btn.pack(side=RIGHT, padx=(10, 0))
 
     # --- Core Functionality ---
     def browse_file(self, string_var, file_ext):
