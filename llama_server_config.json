@@ -11,7 +11,7 @@
     "threads": "",
     "batch_size": "",
     "cont_batching": true,
-    "parallel": "1",
+    "parallel": "",
     "flash_attn": true,
     "mlock": false,
     "no_mmap": true,
