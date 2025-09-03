@@ -13,7 +13,7 @@ def build_executable():
     
     # Define the build arguments
     args = [
-        'llama-server.py',              # Main script
+        'llama-server_gui_new.py',              # Main script
         '--onefile',                    # Create single executable
         '--windowed',                   # No console window (GUI app)
         '--name=LLaMA-Server-GUI',      # Name of the executable
@@ -71,8 +71,8 @@ if __name__ == "__main__":
         sys.exit(1)
     
     # Check if main script exists
-    if not os.path.exists("llama-server.py"):
-        print("❌ llama-server.py not found in current directory")
+    if not os.path.exists("llama-server_gui_new.py"):
+        print("❌ llama-server_gui_new.py not found in current directory")
         sys.exit(1)
     
     # Build the executable

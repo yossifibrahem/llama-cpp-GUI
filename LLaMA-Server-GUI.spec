@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['llama-server.py'],
+    ['llama-server_gui_new.py'],
     pathex=[],
     binaries=[],
     datas=[('llama-cpp.ico', '.')],
