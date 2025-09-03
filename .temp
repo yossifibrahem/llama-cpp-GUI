@@ -1,0 +1,27 @@
+## 🚀 Essential (you’ll almost always need these)
+
+* **`-n, --n-predict N`** → Number of tokens to generate (default `-1` = infinite).
+
+
+---
+
+## 🎛 Performance tuning
+
+* **`-ub, --ubatch-size N`** → Physical batch size. Lower values reduce VRAM use but slow things down.
+
+---
+
+## 🧠 Sampling & generation control
+
+* **`--temp N`** → Creativity level (default 0.8). Lower = deterministic, higher = creative.
+* **`--top-k N`** → Keep only top-k tokens when sampling (default 40).
+* **`--top-p N`** → Nucleus sampling (default 0.9).
+* **`--repeat-penalty N`** → Penalizes repetition (default 1.0). Increase to reduce loops.
+* **`--ignore-eos`** → Prevents model from stopping early.
+
+---
+
+## 📌 Special use cases
+
+* **`--reasoning-format`** → If using reasoning models (e.g. DeepSeek).
+
