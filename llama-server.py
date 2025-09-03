@@ -321,6 +321,13 @@ class LlamaServerGUI:
         self.create_combobox(chat_group, "Template (--chat-template):", self.chat_template,
                              "Select a chat template. Leave blank for auto-detection from model.",
                              chat_templates, row=0)
+        
+        # --- NEW PARAMETER: Chat Template Kwargs ---
+        self.reasoning_effort = tk.StringVar()
+        reasoning_levels = ["", "low", "medium", "high"]
+        self.create_combobox(chat_group, "Reasoning Effort:", self.reasoning_effort,
+                             "Set reasoning effort level for chat template kwargs. Leave blank to omit this parameter.",
+                             reasoning_levels, row=1)
 
         # --- LoRA ---
         lora_group = ttk.Labelframe(parent, text="LoRA Adapter", padding="10")
@@ -493,6 +500,11 @@ class LlamaServerGUI:
             if var.get().strip():
                 cmd.extend([flag, var.get().strip()])
         
+        # Handle --chat-template-kwargs based on reasoning_effort
+        if self.reasoning_effort.get().strip():
+            kwargs_json = json.dumps({"reasoning_effort": self.reasoning_effort.get()})
+            cmd.extend(['--chat-template-kwargs', kwargs_json])
+        
         # Boolean flags
         bool_args = {
             '-fa': self.flash_attn, '--no-mmap': self.no_mmap,
@@ -609,9 +621,11 @@ class LlamaServerGUI:
             'parallel': self.parallel.get(), 'cont_batching': self.cont_batching.get(),
             'flash_attn': self.flash_attn.get(), 'mlock': self.mlock.get(),
             'no_mmap': self.no_mmap.get(), 'numa': self.numa.get(),
-            'moe_cpu_layers': self.moe_cpu_layers.get(), # --- NEW PARAMETER ---
+            'moe_cpu_layers': self.moe_cpu_layers.get(),
             # Features Tab
-            'chat_template': self.chat_template.get(), 'lora_path': self.lora_path.get(),
+            'chat_template': self.chat_template.get(), 
+            'reasoning_effort': self.reasoning_effort.get(),  # NEW PARAMETER
+            'lora_path': self.lora_path.get(),
             'mmproj_path': self.mmproj_path.get(),
             'draft_model_path': self.draft_model_path.get(), 
             'draft_gpu_layers': self.draft_gpu_layers.get(),
@@ -649,9 +663,10 @@ class LlamaServerGUI:
             self.mlock.set(config.get('mlock', False))
             self.no_mmap.set(config.get('no_mmap', False))
             self.numa.set(config.get('numa', False))
-            self.moe_cpu_layers.set(config.get('moe_cpu_layers', '')) # --- NEW PARAMETER ---
+            self.moe_cpu_layers.set(config.get('moe_cpu_layers', ''))
             # Features Tab
             self.chat_template.set(config.get('chat_template', ''))
+            self.reasoning_effort.set(config.get('reasoning_effort', ''))  # NEW PARAMETER
             self.lora_path.set(config.get('lora_path', ''))
             self.mmproj_path.set(config.get('mmproj_path', ''))
             self.draft_model_path.set(config.get('draft_model_path', ''))
