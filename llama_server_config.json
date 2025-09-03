@@ -26,6 +26,12 @@
     "no_webui": false,
     "embedding": false,
     "verbose": false,
+    "custom_arguments_list": [
+        {
+            "value": "--grammar-file cline.gbnf",
+            "enabled": false
+        }
+    ],
     "reasoning_format": "",
     "ubatch_size": "",
     "n_predict": "",
