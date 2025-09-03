@@ -3,7 +3,7 @@ import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from ttkbootstrap.dialogs import Messagebox
-from ttkbootstrap.scrolled import ScrolledText
+from ttkbootstrap.scrolled import ScrolledText, ScrolledFrame
 from ttkbootstrap.tooltip import ToolTip
 from tkinter import filedialog
 
@@ -41,6 +41,9 @@ class LlamaServerGUI:
 
         # Store slider references for updating on load
         self.slider_refs = {}
+        
+        # Data store for custom arguments
+        self.custom_arguments = []
 
         self.setup_ui()
         self.load_config()
@@ -222,9 +225,13 @@ class LlamaServerGUI:
 
     def setup_server_api_tab(self, parent):
         """Configures the 'Server & API' tab for network, access, and logging."""
+        parent.rowconfigure(2, weight=1) # Allow custom args group to expand
+        parent.columnconfigure(0, weight=1)
+        
         # --- Network Configuration ---
         net_group = ttk.Labelframe(parent, text="Network Configuration", padding="10")
-        net_group.pack(fill=tk.X, pady=5)
+        net_group.grid(row=0, column=0, sticky=EW, pady=5)
+        net_group.columnconfigure(1, weight=1)
         self.host = tk.StringVar(value="127.0.0.1")
         self.create_entry(net_group, "Host (--host):", self.host, "IP address to listen on (0.0.0.0 for network access).", row=0)
         self.port = tk.StringVar(value="8080")
@@ -232,7 +239,8 @@ class LlamaServerGUI:
 
         # --- Access & Features ---
         access_group = ttk.Labelframe(parent, text="Access & Features", padding="10")
-        access_group.pack(fill=tk.X, pady=5)
+        access_group.grid(row=1, column=0, sticky=EW, pady=5)
+        access_group.columnconfigure(1, weight=1)
         self.api_key = tk.StringVar()
         self.create_entry(access_group, "API Key (--api-key):", self.api_key, "API key for bearer token authentication (optional).", row=0)
         self.no_webui = tk.BooleanVar(value=False)
@@ -240,13 +248,33 @@ class LlamaServerGUI:
         self.embedding = tk.BooleanVar(value=False)
         self.create_checkbutton(access_group, "Embeddings Only (--embedding)", self.embedding, "Enable embedding-only mode (disables chat).", row=2)
 
-        # --- Logging & Customization ---
-        custom_group = ttk.Labelframe(parent, text="Logging & Customization", padding="10")
-        custom_group.pack(fill=tk.X, pady=5)
-        self.custom_args = tk.StringVar()
-        self.create_entry(custom_group, "Custom Arguments:", self.custom_args, "Enter any other command-line arguments, separated by spaces.", row=0)
+        # --- Custom Arguments Management ---
+        custom_group = ttk.Labelframe(parent, text="Custom Arguments Management", padding="10")
+        custom_group.grid(row=2, column=0, sticky=NSEW, pady=5)
+        custom_group.columnconfigure(0, weight=1)
+        custom_group.rowconfigure(1, weight=1)
+
+        # Input for new argument
+        add_arg_frame = ttk.Frame(custom_group)
+        add_arg_frame.grid(row=0, column=0, sticky=EW, pady=(0, 10))
+        add_arg_frame.columnconfigure(0, weight=1)
+        self.new_arg_entry = ttk.Entry(add_arg_frame)
+        self.new_arg_entry.grid(row=0, column=0, sticky=EW, padx=(0, 5))
+        ToolTip(self.new_arg_entry, "Enter a full argument with its value (e.g., --my-flag value) and press Add.")
+        add_button = ttk.Button(add_arg_frame, text="Add", command=self.add_custom_argument, bootstyle="success-outline")
+        add_button.grid(row=0, column=1, sticky=E)
+
+        # Scrollable list for existing arguments
+        self.custom_args_list_frame = ScrolledFrame(custom_group, autohide=True, bootstyle="round")
+        self.custom_args_list_frame.grid(row=1, column=0, sticky=NSEW)
+        
+        # Other options below the list
+        other_options_frame = ttk.Frame(custom_group)
+        other_options_frame.grid(row=2, column=0, sticky=EW, pady=(10, 0))
         self.verbose = tk.BooleanVar(value=False)
-        self.create_checkbutton(custom_group, "Verbose Logging (-v)", self.verbose, "Enable verbose server logging for debugging.", row=1)
+        verbose_cb = ttk.Checkbutton(other_options_frame, text="Verbose Logging (-v)", variable=self.verbose, bootstyle="round-toggle")
+        verbose_cb.pack(side=tk.LEFT)
+        ToolTip(verbose_cb, "Enable verbose server logging for debugging.")
         
     def setup_output_tab(self, parent):
         """Sets up the server output log view."""
@@ -352,6 +380,45 @@ class LlamaServerGUI:
         ToolTip(btn, text=tooltip_text)
         return btn
 
+    # --- Custom Argument Methods ---
+    def add_custom_argument(self):
+        arg_text = self.new_arg_entry.get().strip()
+        if not arg_text:
+            return
+        if any(arg['value'] == arg_text for arg in self.custom_arguments):
+            Messagebox.show_warning("This argument already exists in the list.", "Duplicate Argument")
+            return
+            
+        self.custom_arguments.append({"value": arg_text, "enabled": True})
+        self.new_arg_entry.delete(0, tk.END)
+        self.rebuild_custom_args_list()
+
+    def delete_custom_argument(self, arg_to_delete):
+        self.custom_arguments.remove(arg_to_delete)
+        self.rebuild_custom_args_list()
+        
+    def rebuild_custom_args_list(self):
+        for widget in self.custom_args_list_frame.winfo_children():
+            widget.destroy()
+
+        for arg_item in self.custom_arguments:
+            row_frame = ttk.Frame(self.custom_args_list_frame, padding=(5, 3))
+            row_frame.pack(fill=X, expand=True)
+
+            is_enabled_var = tk.BooleanVar(value=arg_item.get("enabled", True))
+            
+            def on_toggle(item=arg_item, var=is_enabled_var):
+                item["enabled"] = var.get()
+
+            toggle = ttk.Checkbutton(row_frame, variable=is_enabled_var, bootstyle="round-toggle", command=on_toggle)
+            toggle.pack(side=LEFT, padx=(0, 10))
+
+            label = ttk.Label(row_frame, text=arg_item["value"])
+            label.pack(side=LEFT, fill=X, expand=True, anchor=W)
+
+            delete_btn = ttk.Button(row_frame, text="Delete", bootstyle="danger-link", command=lambda item=arg_item: self.delete_custom_argument(item))
+            delete_btn.pack(side=RIGHT, padx=(10, 0))
+
     # --- Core Functionality ---
     def browse_file(self, string_var, file_ext):
         filename = filedialog.askopenfilename(
@@ -403,8 +470,10 @@ class LlamaServerGUI:
         if self.numa.get():
             cmd.extend(["--numa", "distribute"])
             
-        if self.custom_args.get().strip():
-            cmd.extend(self.custom_args.get().strip().split())
+        # Add enabled custom arguments from the list
+        for arg_item in self.custom_arguments:
+            if arg_item.get("enabled", False) and arg_item.get("value", "").strip():
+                cmd.extend(arg_item["value"].strip().split())
             
         return cmd
 
@@ -507,7 +576,7 @@ class LlamaServerGUI:
             'draft_gpu_layers': self.draft_gpu_layers.get(), 'draft_tokens': self.draft_tokens.get(),
             'host': self.host.get(), 'port': self.port.get(), 'api_key': self.api_key.get(),
             'no_webui': self.no_webui.get(), 'embedding': self.embedding.get(),
-            'verbose': self.verbose.get(), 'custom_args': self.custom_args.get(),
+            'verbose': self.verbose.get(), 'custom_arguments_list': self.custom_arguments,
             'reasoning_format': self.reasoning_format.get(), 'ubatch_size': self.ubatch_size.get(),
             'n_predict': self.n_predict.get(), 'ignore_eos': self.ignore_eos.get(),
             'temp': self.temp.get(), 'top_k': self.top_k.get(), 'top_p': self.top_p.get(),
@@ -554,7 +623,15 @@ class LlamaServerGUI:
             self.no_webui.set(config.get('no_webui', False))
             self.embedding.set(config.get('embedding', False))
             self.verbose.set(config.get('verbose', False))
-            self.custom_args.set(config.get('custom_args', ''))
+
+            # Load new custom arguments list
+            self.custom_arguments = config.get('custom_arguments_list', [])
+            # Backward compatibility for old 'custom_args' string
+            if not self.custom_arguments and 'custom_args' in config:
+                old_args_str = config['custom_args'].strip()
+                if old_args_str:
+                    self.custom_arguments.append({"value": old_args_str, "enabled": True})
+            self.rebuild_custom_args_list()
 
             self.reasoning_format.set(config.get('reasoning_format', ''))
             self.ubatch_size.set(config.get('ubatch_size', ''))
@@ -646,7 +723,7 @@ def main():
 
     def on_closing():
         if app.is_running and TRAY_AVAILABLE:
-            app.hide_to_tray()   # moved into class
+            app.hide_to_tray()
         else:
             if app.server_process:
                 app.server_process.terminate()
