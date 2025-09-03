@@ -25,8 +25,8 @@ class LlamaServerGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("LLaMA Server GUI Manager")
-        self.root.geometry("1200x900")
-        self.root.minsize(1200, 900)
+        self.root.geometry("1100x700")
+        self.root.minsize(1100, 700)
 
         # Server process management
         self.server_process = None
@@ -66,12 +66,14 @@ class LlamaServerGUI:
 
         # --- Create Tab Frames ---
         model_frame = ttk.Frame(notebook, padding="10")
+        generation_frame = ttk.Frame(notebook, padding="10")
         performance_core_frame = ttk.Frame(notebook, padding="10")
         performance_advanced_frame = ttk.Frame(notebook, padding="10")
         server_api_frame = ttk.Frame(notebook, padding="10")
         output_frame = ttk.Frame(notebook, padding="10")
 
         notebook.add(model_frame, text="  Models ")
+        notebook.add(generation_frame, text=" Generation ")
         notebook.add(performance_core_frame, text=" Performance ")
         notebook.add(performance_advanced_frame, text=" Advanced ")
         notebook.add(server_api_frame, text=" Server & API ")
@@ -79,6 +81,7 @@ class LlamaServerGUI:
 
         # --- Populate Tabs ---
         self.setup_model_tab(model_frame)
+        self.setup_generation_tab(generation_frame)
         self.setup_performance_core_tab(performance_core_frame)
         self.setup_performance_advanced_tab(performance_advanced_frame)
         self.setup_server_api_tab(server_api_frame)
@@ -127,11 +130,45 @@ class LlamaServerGUI:
         self.chat_template = tk.StringVar()
         chat_templates = ["", "bailing", "chatglm3", "chatglm4", "chatml", "command-r", "deepseek", "deepseek2", "gemma", "llama2", "llama3", "mistral", "openchat", "phi3", "vicuna", "zephyr"]
         self.create_combobox(chat_group, "Template (--chat-template):", self.chat_template, "Select a chat template (leave blank for auto-detection).", chat_templates, row=0)
+
+        self.reasoning_format = tk.StringVar()
+        reasoning_formats = ["", "auto", "none", "deepseek"]
+        self.create_combobox(chat_group, "Reasoning Format (--reasoning-format):", self.reasoning_format, "Controls whether thought tags are allowed and/or extracted from the response.", reasoning_formats, row=1)
+
         self.reasoning_effort = tk.StringVar()
         reasoning_levels = ["", "low", "medium", "high"]
-        self.create_combobox(chat_group, "Reasoning Effort:", self.reasoning_effort, "Set reasoning effort for chat template kwargs (some models).", reasoning_levels, row=1)
+        self.create_combobox(chat_group, "Reasoning Effort:", self.reasoning_effort, "Set reasoning effort for chat template kwargs (some models).", reasoning_levels, row=2)
+        
         self.jinja = tk.BooleanVar(value=False)
-        self.create_checkbutton(chat_group, "Enable Jinja (--jinja)", self.jinja, "Enable Jinja2 templating (required for some custom templates).", row=2)
+        self.create_checkbutton(chat_group, "Enable Jinja (--jinja)", self.jinja, "Enable Jinja2 templating (required for some custom templates).", row=3)
+
+    def setup_generation_tab(self, parent):
+        """Configures the 'Generation' tab for sampling and output control."""
+        # --- Output Control ---
+        output_group = ttk.Labelframe(parent, text="Output Control", padding="10")
+        output_group.pack(fill=tk.X, pady=5, side=tk.TOP)
+        
+        self.n_predict = tk.StringVar(value="")
+        self.create_spinbox(output_group, "Tokens to Generate (-n, --n-predict):", self.n_predict, "Number of tokens to generate (default -1 = infinite).", from_=-1, to=131072, increment=1, row=0)
+        
+        self.ignore_eos = tk.BooleanVar(value=False)
+        self.create_checkbutton(output_group, "Ignore End-of-Sequence (--ignore-eos)", self.ignore_eos, "Prevents model from stopping early.", row=1)
+        
+        # --- Sampling Parameters ---
+        sampling_group = ttk.Labelframe(parent, text="Sampling Parameters", padding="10")
+        sampling_group.pack(fill=tk.X, pady=5)
+        
+        self.temp = tk.StringVar(value="")
+        self.create_spinbox(sampling_group, "Temperature (--temp):", self.temp, "Creativity level (default 0.8). Lower = deterministic, higher = creative.", from_=0, to=2, increment=0.1, row=0)
+
+        self.top_k = tk.StringVar(value="")
+        self.create_spinbox(sampling_group, "Top-K (--top-k):", self.top_k, "Keep only top-k tokens when sampling (default 40).", from_=0, to=1000, increment=1, row=1)
+        
+        self.top_p = tk.StringVar(value="")
+        self.create_spinbox(sampling_group, "Top-P (--top-p):", self.top_p, "Nucleus sampling (default 0.9).", from_=0, to=1, increment=0.1, row=2)
+
+        self.repeat_penalty = tk.StringVar(value="")
+        self.create_spinbox(sampling_group, "Repeat Penalty (--repeat-penalty):", self.repeat_penalty, "Penalizes repetition (default 1.0). Increase to reduce loops.", from_=0, to=2, increment=0.1, row=3)
 
     def setup_performance_core_tab(self, parent):
         """Configures the 'Performance' tab for core speed and throughput settings."""
@@ -145,7 +182,9 @@ class LlamaServerGUI:
         self.threads = tk.StringVar(value="")
         self.create_spinbox(core_group, "CPU Threads (-t):", self.threads, "Number of CPU threads to use (e.g., 8).", from_=1, to=128, increment=1, row=2)
         self.batch_size = tk.StringVar(value="")
-        self.create_spinbox(core_group, "Batch Size (-b):", self.batch_size, "Batch size for prompt processing (e.g., 2048).", from_=1, to=1024, increment=1, row=3)
+        self.create_spinbox(core_group, "Batch Size (-b):", self.batch_size, "Batch size for prompt processing (e.g., 2048).", from_=1, to=8192, increment=1, row=3)
+        self.ubatch_size = tk.StringVar(value="")
+        self.create_spinbox(core_group, "Physical Batch Size (-ub):", self.ubatch_size, "Physical batch size. Lower values reduce VRAM use but slow things down.", from_=1, to=1024, increment=1, row=4)
 
         # --- Advanced Throughput ---
         throughput_group = ttk.Labelframe(parent, text="Advanced Throughput", padding="10")
@@ -213,7 +252,7 @@ class LlamaServerGUI:
         """Sets up the server output log view."""
         ttk.Label(parent, text="Server Log Output:").pack(anchor=tk.W, pady=(0, 5))
         monospace_font = ("Consolas", 10)
-        self.output_text = ScrolledText(parent, height=25, wrap=tk.WORD, font=monospace_font, autohide=True)
+        self.output_text = ScrolledText(parent, height=20, wrap=tk.WORD, font=monospace_font, autohide=True)
         self.output_text.pack(fill=tk.BOTH, expand=True)
         clear_btn = ttk.Button(parent, text="Clear Output", command=self.clear_output, bootstyle="secondary-outline")
         clear_btn.pack(pady=(10, 0), anchor=tk.E)
@@ -337,7 +376,10 @@ class LlamaServerGUI:
             '-np': self.parallel, '--lora': self.lora_path,
             '--mmproj': self.mmproj_path, '--chat-template': self.chat_template,
             '-md': self.draft_model_path, '-ngld': self.draft_gpu_layers,
-            '--draft': self.draft_tokens, '--n-cpu-moe': self.moe_cpu_layers
+            '--draft': self.draft_tokens, '--n-cpu-moe': self.moe_cpu_layers,
+            '--reasoning-format': self.reasoning_format, '-ub': self.ubatch_size,
+            '-n': self.n_predict, '--temp': self.temp, '--top-k': self.top_k,
+            '--top-p': self.top_p, '--repeat-penalty': self.repeat_penalty
         }
         for flag, var in args.items():
             if var.get().strip():
@@ -351,7 +393,8 @@ class LlamaServerGUI:
             '-fa': self.flash_attn, '--no-mmap': self.no_mmap,
             '--no-webui': self.no_webui, '-cb': self.cont_batching,
             '--mlock': self.mlock, '--embedding': self.embedding,
-            '--jinja': self.jinja, '-v': self.verbose
+            '--jinja': self.jinja, '-v': self.verbose,
+            '--ignore-eos': self.ignore_eos
         }
         for flag, var in bool_args.items():
             if var.get():
@@ -464,7 +507,11 @@ class LlamaServerGUI:
             'draft_gpu_layers': self.draft_gpu_layers.get(), 'draft_tokens': self.draft_tokens.get(),
             'host': self.host.get(), 'port': self.port.get(), 'api_key': self.api_key.get(),
             'no_webui': self.no_webui.get(), 'embedding': self.embedding.get(),
-            'verbose': self.verbose.get(), 'custom_args': self.custom_args.get()
+            'verbose': self.verbose.get(), 'custom_args': self.custom_args.get(),
+            'reasoning_format': self.reasoning_format.get(), 'ubatch_size': self.ubatch_size.get(),
+            'n_predict': self.n_predict.get(), 'ignore_eos': self.ignore_eos.get(),
+            'temp': self.temp.get(), 'top_k': self.top_k.get(), 'top_p': self.top_p.get(),
+            'repeat_penalty': self.repeat_penalty.get()
         }
         try:
             with open(self.config_file, 'w') as f:
@@ -508,6 +555,15 @@ class LlamaServerGUI:
             self.embedding.set(config.get('embedding', False))
             self.verbose.set(config.get('verbose', False))
             self.custom_args.set(config.get('custom_args', ''))
+
+            self.reasoning_format.set(config.get('reasoning_format', ''))
+            self.ubatch_size.set(config.get('ubatch_size', ''))
+            self.n_predict.set(config.get('n_predict', ''))
+            self.ignore_eos.set(config.get('ignore_eos', False))
+            self.temp.set(config.get('temp', ''))
+            self.top_k.set(config.get('top_k', ''))
+            self.top_p.set(config.get('top_p', ''))
+            self.repeat_penalty.set(config.get('repeat_penalty', ''))
             
             self.update_all_sliders()
         except Exception as e:
@@ -577,7 +633,7 @@ def resource_path(filename):
     return os.path.join(os.path.abspath("."), filename)
 
 def main():
-    root = ttk.Window(themename="flatly")
+    root = ttk.Window(themename="cosmo")
     
     try:
         icon_path = resource_path("llama-cpp.ico")
@@ -603,4 +659,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
