@@ -125,7 +125,6 @@ class LlamaServerGUI:
     def show_in_tray(self):
         """Minimize the application to system tray"""
         if not TRAY_AVAILABLE:
-            messagebox.showwarning("System Tray", "System tray functionality requires 'pystray' and 'Pillow' packages.\nInstall them with: pip install pystray Pillow")
             return False
             
         self.root.withdraw()  # Hide the window
@@ -674,49 +673,19 @@ def main():
     app = LlamaServerGUI(root)
     
     def on_closing():
-        if not app.is_running:
-            root.destroy()
-            return
-
-        response = messagebox.askyesnocancel(
-            "Server Still Running",
-            "The LLaMA server is active. Do you want to stop it before exiting?",
-            detail="• Yes: Stop Server and Exit.\n"
-                   "• No: Minimize to Tray\n"
-                   "• Cancel: Return to Application",
-            icon=messagebox.WARNING
-        )
-        if response is True:  # Yes - Stop server and exit
-            app.stop_server()
-            root.after(1000, root.destroy)
-        elif response is False:  # No - Minimize to tray
-            if app.show_in_tray():
+        if app.is_running:
+            # Server is running - minimize to tray (if available)
+            if TRAY_AVAILABLE and app.show_in_tray():
                 # Successfully minimized to tray
-                pass
+                return
             else:
-                # Tray not available, ask user what to do
-                fallback = messagebox.askyesno(
-                    "System Tray Unavailable",
-                    "System tray functionality is not available.\n\n"
-                    "Do you want to exit anyway and leave the server running?",
-                    detail="The server process will continue running in the background.",
-                    icon=messagebox.QUESTION
-                )
-                if fallback:
-                    root.destroy()
-        # If response is None (Cancel), do nothing and return to app
+                # Tray not available - just exit and leave server running
+                root.destroy()
+        else:
+            # Server not running - just close the app
+            root.destroy()
             
     root.protocol("WM_DELETE_WINDOW", on_closing)
-    
-    # Show warning if tray dependencies are missing
-    if not TRAY_AVAILABLE:
-        root.after(1000, lambda: messagebox.showinfo(
-            "System Tray",
-            "For full functionality including system tray support, install:\n\n"
-            "pip install pystray Pillow\n\n"
-            "This will allow the app to minimize to the system tray when a server is running.",
-            icon=messagebox.INFO
-        ))
     
     root.mainloop()
 

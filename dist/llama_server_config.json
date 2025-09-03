@@ -1,8 +1,8 @@
 {
     "model_path": "C:/Users/yossi/.cache/lm-studio/models/lmstudio-community/gpt-oss-20b-GGUF/gpt-oss-20b-MXFP4.gguf",
-    "alias": "GPT-OSS-20b",
+    "alias": "gpt-oss-20b",
     "host": "127.0.0.1",
-    "port": "8080",
+    "port": "4321",
     "api_key": "",
     "ctx_size": 32768,
     "gpu_layers": 99,
