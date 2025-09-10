@@ -205,7 +205,8 @@ class LlamaServerGUI:
         mem_group = ttk.Labelframe(parent, text="Memory & Optimizations", padding="10")
         mem_group.pack(fill=tk.X, pady=5)
         self.flash_attn = tk.StringVar(value="auto")
-        self.create_combobox(mem_group, "Flash Attention (-fa)", self.flash_attn, "Select Flash Attention mode.", ["auto", "on", "off"], row=0)
+        flash_attn_options = ["on", "off", "auto"]
+        self.create_combobox(mem_group, "Flash Attention (-fa):", self.flash_attn, "Set Flash Attention use ('on', 'off', or 'auto', default: 'auto').", flash_attn_options, row=0)
         self.moe_cpu_layers = tk.StringVar(value="")
         self.create_spinbox(mem_group, "MoE CPU Layers (--n-cpu-moe):", self.moe_cpu_layers, "MoE layers to keep on CPU if model doesn't fit on GPU.", row=1, from_=0, to=99, increment=1)
         self.mlock = tk.BooleanVar(value=False)
@@ -485,6 +486,10 @@ class LlamaServerGUI:
             kwargs_json = json.dumps({"reasoning_effort": self.reasoning_effort.get()})
             cmd.extend(['--chat-template-kwargs', kwargs_json])
         
+        # Handle flash attention as a special case since it needs a value
+        if self.flash_attn.get().strip() and self.flash_attn.get().strip() != "auto":
+            cmd.extend(['-fa', self.flash_attn.get().strip()])
+        
         bool_args = {
             '--no-mmap': self.no_mmap,
             '--no-webui': self.no_webui, '-cb': self.cont_batching,
@@ -495,11 +500,6 @@ class LlamaServerGUI:
         for flag, var in bool_args.items():
             if var.get():
                 cmd.append(flag)
-        
-        # Add Flash Attention with chosen mode
-        fa_value = self.flash_attn.get()
-        if fa_value:
-            cmd.extend(['-fa', fa_value])
 
         if self.numa.get():
             cmd.extend(["--numa", "distribute"])
@@ -643,7 +643,7 @@ class LlamaServerGUI:
             self.batch_size.set(config.get('batch_size', ''))
             self.cont_batching.set(config.get('cont_batching', False))
             self.parallel.set(config.get('parallel', ''))
-            self.flash_attn.set(config.get('flash_attn', 'auto'))
+            self.flash_attn.set(config.get('flash_attn', False))
             self.mlock.set(config.get('mlock', False))
             self.no_mmap.set(config.get('no_mmap', False))
             self.numa.set(config.get('numa', False))
