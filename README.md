@@ -1,176 +1,223 @@
-**Common params**
+# LLaMA Server GUI Manager
 
-| Argument | Explanation |
-| -------- | ----------- |
-| `-h, --help, --usage` | print usage and exit |
-| `--version` | show version and build info |
-| `--completion-bash` | print source-able bash completion script for llama.cpp |
-| `--verbose-prompt` | print a verbose prompt before generation (default: false) |
-| `-t, --threads N` | number of threads to use during generation (default: -1)<br/>(env: LLAMA_ARG_THREADS) |
-| `-tb, --threads-batch N` | number of threads to use during batch and prompt processing (default: same as --threads) |
-| `-C, --cpu-mask M` | CPU affinity mask: arbitrarily long hex. Complements cpu-range (default: "") |
-| `-Cr, --cpu-range lo-hi` | range of CPUs for affinity. Complements --cpu-mask |
-| `--cpu-strict <0\|1>` | use strict CPU placement (default: 0)<br/> |
-| `--prio N` | set process/thread priority : 0-normal, 1-medium, 2-high, 3-realtime (default: 0)<br/> |
-| `--poll <0...100>` | use polling level to wait for work (0 - no polling, default: 50)<br/> |
-| `-Cb, --cpu-mask-batch M` | CPU affinity mask: arbitrarily long hex. Complements cpu-range-batch (default: same as --cpu-mask) |
-| `-Crb, --cpu-range-batch lo-hi` | ranges of CPUs for affinity. Complements --cpu-mask-batch |
-| `--cpu-strict-batch <0\|1>` | use strict CPU placement (default: same as --cpu-strict) |
-| `--prio-batch N` | set process/thread priority : 0-normal, 1-medium, 2-high, 3-realtime (default: 0)<br/> |
-| `--poll-batch <0\|1>` | use polling to wait for work (default: same as --poll) |
-| `-c, --ctx-size N` | size of the prompt context (default: 4096, 0 = loaded from model)<br/>(env: LLAMA_ARG_CTX_SIZE) |
-| `-n, --predict, --n-predict N` | number of tokens to predict (default: -1, -1 = infinity)<br/>(env: LLAMA_ARG_N_PREDICT) |
-| `-b, --batch-size N` | logical maximum batch size (default: 2048)<br/>(env: LLAMA_ARG_BATCH) |
-| `-ub, --ubatch-size N` | physical maximum batch size (default: 512)<br/>(env: LLAMA_ARG_UBATCH) |
-| `--keep N` | number of tokens to keep from the initial prompt (default: 0, -1 = all) |
-| `-fa, --flash-attn` | enable Flash Attention (default: disabled)<br/>(env: LLAMA_ARG_FLASH_ATTN) |
-| `--no-perf` | disable internal libllama performance timings (default: false)<br/>(env: LLAMA_ARG_NO_PERF) |
-| `-e, --escape` | process escapes sequences (\n, \r, \t, \', \", \\) (default: true) |
-| `--no-escape` | do not process escape sequences |
-| `--rope-scaling {none,linear,yarn}` | RoPE frequency scaling method, defaults to linear unless specified by the model<br/>(env: LLAMA_ARG_ROPE_SCALING_TYPE) |
-| `--rope-scale N` | RoPE context scaling factor, expands context by a factor of N<br/>(env: LLAMA_ARG_ROPE_SCALE) |
-| `--rope-freq-base N` | RoPE base frequency, used by NTK-aware scaling (default: loaded from model)<br/>(env: LLAMA_ARG_ROPE_FREQ_BASE) |
-| `--rope-freq-scale N` | RoPE frequency scaling factor, expands context by a factor of 1/N<br/>(env: LLAMA_ARG_ROPE_FREQ_SCALE) |
-| `--yarn-orig-ctx N` | YaRN: original context size of model (default: 0 = model training context size)<br/>(env: LLAMA_ARG_YARN_ORIG_CTX) |
-| `--yarn-ext-factor N` | YaRN: extrapolation mix factor (default: -1.0, 0.0 = full interpolation)<br/>(env: LLAMA_ARG_YARN_EXT_FACTOR) |
-| `--yarn-attn-factor N` | YaRN: scale sqrt(t) or attention magnitude (default: 1.0)<br/>(env: LLAMA_ARG_YARN_ATTN_FACTOR) |
-| `--yarn-beta-slow N` | YaRN: high correction dim or alpha (default: 1.0)<br/>(env: LLAMA_ARG_YARN_BETA_SLOW) |
-| `--yarn-beta-fast N` | YaRN: low correction dim or beta (default: 32.0)<br/>(env: LLAMA_ARG_YARN_BETA_FAST) |
-| `-dkvc, --dump-kv-cache` | verbose print of the KV cache |
-| `-nkvo, --no-kv-offload` | disable KV offload<br/>(env: LLAMA_ARG_NO_KV_OFFLOAD) |
-| `-ctk, --cache-type-k TYPE` | KV cache data type for K<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1<br/>(default: f16)<br/>(env: LLAMA_ARG_CACHE_TYPE_K) |
-| `-ctv, --cache-type-v TYPE` | KV cache data type for V<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1<br/>(default: f16)<br/>(env: LLAMA_ARG_CACHE_TYPE_V) |
-| `-dt, --defrag-thold N` | KV cache defragmentation threshold (DEPRECATED)<br/>(env: LLAMA_ARG_DEFRAG_THOLD) |
-| `-np, --parallel N` | number of parallel sequences to decode (default: 1)<br/>(env: LLAMA_ARG_N_PARALLEL) |
-| `--mlock` | force system to keep model in RAM rather than swapping or compressing<br/>(env: LLAMA_ARG_MLOCK) |
-| `--no-mmap` | do not memory-map model (slower load but may reduce pageouts if not using mlock)<br/>(env: LLAMA_ARG_NO_MMAP) |
-| `--numa TYPE` | attempt optimizations that help on some NUMA systems<br/>- distribute: spread execution evenly over all nodes<br/>- isolate: only spawn threads on CPUs on the node that execution started on<br/>- numactl: use the CPU map provided by numactl<br/>if run without this previously, it is recommended to drop the system page cache before using this<br/>see https://github.com/ggml-org/llama.cpp/issues/1437<br/>(env: LLAMA_ARG_NUMA) |
-| `-dev, --device <dev1,dev2,..>` | comma-separated list of devices to use for offloading (none = don't offload)<br/>use --list-devices to see a list of available devices<br/>(env: LLAMA_ARG_DEVICE) |
-| `--list-devices` | print list of available devices and exit |
-| `--override-tensor, -ot <tensor name pattern>=<buffer type>,...` | override tensor buffer type |
-| `-ngl, --gpu-layers, --n-gpu-layers N` | number of layers to store in VRAM<br/>(env: LLAMA_ARG_N_GPU_LAYERS) |
-| `-sm, --split-mode {none,layer,row}` | how to split the model across multiple GPUs, one of:<br/>- none: use one GPU only<br/>- layer (default): split layers and KV across GPUs<br/>- row: split rows across GPUs<br/>(env: LLAMA_ARG_SPLIT_MODE) |
-| `-ts, --tensor-split N0,N1,N2,...` | fraction of the model to offload to each GPU, comma-separated list of proportions, e.g. 3,1<br/>(env: LLAMA_ARG_TENSOR_SPLIT) |
-| `-mg, --main-gpu INDEX` | the GPU to use for the model (with split-mode = none), or for intermediate results and KV (with split-mode = row) (default: 0)<br/>(env: LLAMA_ARG_MAIN_GPU) |
-| `--check-tensors` | check model tensor data for invalid values (default: false) |
-| `--override-kv KEY=TYPE:VALUE` | advanced option to override model metadata by key. may be specified multiple times.<br/>types: int, float, bool, str. example: --override-kv tokenizer.ggml.add_bos_token=bool:false |
-| `--lora FNAME` | path to LoRA adapter (can be repeated to use multiple adapters) |
-| `--lora-scaled FNAME SCALE` | path to LoRA adapter with user defined scaling (can be repeated to use multiple adapters) |
-| `--control-vector FNAME` | add a control vector<br/>note: this argument can be repeated to add multiple control vectors |
-| `--control-vector-scaled FNAME SCALE` | add a control vector with user defined scaling SCALE<br/>note: this argument can be repeated to add multiple scaled control vectors |
-| `--control-vector-layer-range START END` | layer range to apply the control vector(s) to, start and end inclusive |
-| `-m, --model FNAME` | model path (default: `models/$filename` with filename from `--hf-file` or `--model-url` if set, otherwise models/7B/ggml-model-f16.gguf)<br/>(env: LLAMA_ARG_MODEL) |
-| `-mu, --model-url MODEL_URL` | model download url (default: unused)<br/>(env: LLAMA_ARG_MODEL_URL) |
-| `-hf, -hfr, --hf-repo <user>/<model>[:quant]` | Hugging Face model repository; quant is optional, case-insensitive, default to Q4_K_M, or falls back to the first file in the repo if Q4_K_M doesn't exist.<br/>mmproj is also downloaded automatically if available. to disable, add --no-mmproj<br/>example: unsloth/phi-4-GGUF:q4_k_m<br/>(default: unused)<br/>(env: LLAMA_ARG_HF_REPO) |
-| `-hfd, -hfrd, --hf-repo-draft <user>/<model>[:quant]` | Same as --hf-repo, but for the draft model (default: unused)<br/>(env: LLAMA_ARG_HFD_REPO) |
-| `-hff, --hf-file FILE` | Hugging Face model file. If specified, it will override the quant in --hf-repo (default: unused)<br/>(env: LLAMA_ARG_HF_FILE) |
-| `-hfv, -hfrv, --hf-repo-v <user>/<model>[:quant]` | Hugging Face model repository for the vocoder model (default: unused)<br/>(env: LLAMA_ARG_HF_REPO_V) |
-| `-hffv, --hf-file-v FILE` | Hugging Face model file for the vocoder model (default: unused)<br/>(env: LLAMA_ARG_HF_FILE_V) |
-| `-hft, --hf-token TOKEN` | Hugging Face access token (default: value from HF_TOKEN environment variable)<br/>(env: HF_TOKEN) |
-| `--log-disable` | Log disable |
-| `--log-file FNAME` | Log to file |
-| `--log-colors` | Enable colored logging<br/>(env: LLAMA_LOG_COLORS) |
-| `-v, --verbose, --log-verbose` | Set verbosity level to infinity (i.e. log all messages, useful for debugging) |
-| `-lv, --verbosity, --log-verbosity N` | Set the verbosity threshold. Messages with a higher verbosity will be ignored.<br/>(env: LLAMA_LOG_VERBOSITY) |
-| `--log-prefix` | Enable prefix in log messages<br/>(env: LLAMA_LOG_PREFIX) |
-| `--log-timestamps` | Enable timestamps in log messages<br/>(env: LLAMA_LOG_TIMESTAMPS) |
+A comprehensive graphical user interface for managing and configuring the `llama-server` executable from the llama.cpp project. This application provides an intuitive way to configure, start, stop, and monitor your local LLaMA server without dealing with complex command-line arguments.
 
+## Features
 
-**Sampling params**
+### 🎛️ Complete Configuration Management
+- **Model Configuration**: Load GGUF models, LoRA adapters, and multimodal projectors
+- **Chat Templates**: Support for various chat templates (llama3, chatml, mistral, etc.)
+- **Generation Parameters**: Fine-tune sampling settings (temperature, top-k, top-p, etc.)
+- **Performance Tuning**: Configure GPU layers, context size, batch sizes, and threading
+- **Advanced Features**: Speculative decoding, continuous batching, flash attention
 
-| Argument | Explanation |
-| -------- | ----------- |
-| `--samplers SAMPLERS` | samplers that will be used for generation in the order, separated by ';'<br/>(default: penalties;dry;top_n_sigma;top_k;typ_p;top_p;min_p;xtc;temperature) |
-| `-s, --seed SEED` | RNG seed (default: -1, use random seed for -1) |
-| `--sampling-seq, --sampler-seq SEQUENCE` | simplified sequence for samplers that will be used (default: edskypmxt) |
-| `--ignore-eos` | ignore end of stream token and continue generating (implies --logit-bias EOS-inf) |
-| `--temp N` | temperature (default: 0.8) |
-| `--top-k N` | top-k sampling (default: 40, 0 = disabled) |
-| `--top-p N` | top-p sampling (default: 0.9, 1.0 = disabled) |
-| `--min-p N` | min-p sampling (default: 0.1, 0.0 = disabled) |
-| `--xtc-probability N` | xtc probability (default: 0.0, 0.0 = disabled) |
-| `--xtc-threshold N` | xtc threshold (default: 0.1, 1.0 = disabled) |
-| `--typical N` | locally typical sampling, parameter p (default: 1.0, 1.0 = disabled) |
-| `--repeat-last-n N` | last n tokens to consider for penalize (default: 64, 0 = disabled, -1 = ctx_size) |
-| `--repeat-penalty N` | penalize repeat sequence of tokens (default: 1.0, 1.0 = disabled) |
-| `--presence-penalty N` | repeat alpha presence penalty (default: 0.0, 0.0 = disabled) |
-| `--frequency-penalty N` | repeat alpha frequency penalty (default: 0.0, 0.0 = disabled) |
-| `--dry-multiplier N` | set DRY sampling multiplier (default: 0.0, 0.0 = disabled) |
-| `--dry-base N` | set DRY sampling base value (default: 1.75) |
-| `--dry-allowed-length N` | set allowed length for DRY sampling (default: 2) |
-| `--dry-penalty-last-n N` | set DRY penalty for the last n tokens (default: -1, 0 = disable, -1 = context size) |
-| `--dry-sequence-breaker STRING` | add sequence breaker for DRY sampling, clearing out default breakers ('\n', ':', '"', '*') in the process; use "none" to not use any sequence breakers<br/> |
-| `--dynatemp-range N` | dynamic temperature range (default: 0.0, 0.0 = disabled) |
-| `--dynatemp-exp N` | dynamic temperature exponent (default: 1.0) |
-| `--mirostat N` | use Mirostat sampling.<br/>Top K, Nucleus and Locally Typical samplers are ignored if used.<br/>(default: 0, 0 = disabled, 1 = Mirostat, 2 = Mirostat 2.0) |
-| `--mirostat-lr N` | Mirostat learning rate, parameter eta (default: 0.1) |
-| `--mirostat-ent N` | Mirostat target entropy, parameter tau (default: 5.0) |
-| `-l, --logit-bias TOKEN_ID(+/-)BIAS` | modifies the likelihood of token appearing in the completion,<br/>i.e. `--logit-bias 15043+1` to increase likelihood of token ' Hello',<br/>or `--logit-bias 15043-1` to decrease likelihood of token ' Hello' |
-| `--grammar GRAMMAR` | BNF-like grammar to constrain generations (see samples in grammars/ dir) (default: '') |
-| `--grammar-file FNAME` | file to read grammar from |
-| `-j, --json-schema SCHEMA` | JSON schema to constrain generations (https://json-schema.org/), e.g. `{}` for any JSON object<br/>For schemas w/ external $refs, use --grammar + example/json_schema_to_grammar.py instead |
-| `-jf, --json-schema-file FILE` | File containing a JSON schema to constrain generations (https://json-schema.org/), e.g. `{}` for any JSON object<br/>For schemas w/ external $refs, use --grammar + example/json_schema_to_grammar.py instead |
+### 🖥️ User-Friendly Interface
+- **Tabbed Layout**: Organized sections for different configuration areas
+- **Interactive Controls**: Sliders, dropdowns, and input fields with tooltips
+- **Real-time Validation**: Input validation and helpful error messages
+- **Custom Arguments**: Add any additional llama-server arguments not covered by the GUI
 
+### 💾 Configuration Management
+- **Save/Load Configs**: Persistent JSON-based configuration storage
+- **Portable Settings**: Config files stored alongside the executable
+- **Backup-Friendly**: Human-readable JSON configuration format
 
-**Example-specific params**
+### 🔧 Server Management
+- **One-Click Start/Stop**: Easy server process management
+- **Live Output Monitoring**: Real-time server log display
+- **Browser Integration**: Quick access to the web UI
+- **System Tray Support**: Minimize to tray and run in background (optional)
 
-| Argument | Explanation |
-| -------- | ----------- |
-| `--no-context-shift` | disables context shift on infinite text generation (default: disabled)<br/>(env: LLAMA_ARG_NO_CONTEXT_SHIFT) |
-| `-sp, --special` | special tokens output enabled (default: false) |
-| `--no-warmup` | skip warming up the model with an empty run |
-| `--spm-infill` | use Suffix/Prefix/Middle pattern for infill (instead of Prefix/Suffix/Middle) as some models prefer this. (default: disabled) |
-| `--pooling {none,mean,cls,last,rank}` | pooling type for embeddings, use model default if unspecified<br/>(env: LLAMA_ARG_POOLING) |
-| `-cb, --cont-batching` | enable continuous batching (a.k.a dynamic batching) (default: enabled)<br/>(env: LLAMA_ARG_CONT_BATCHING) |
-| `-nocb, --no-cont-batching` | disable continuous batching<br/>(env: LLAMA_ARG_NO_CONT_BATCHING) |
-| `--mmproj FILE` | path to a multimodal projector file. see tools/mtmd/README.md<br/>note: if -hf is used, this argument can be omitted<br/>(env: LLAMA_ARG_MMPROJ) |
-| `--mmproj-url URL` | URL to a multimodal projector file. see tools/mtmd/README.md<br/>(env: LLAMA_ARG_MMPROJ_URL) |
-| `--no-mmproj` | explicitly disable multimodal projector, useful when using -hf<br/>(env: LLAMA_ARG_NO_MMPROJ) |
-| `--no-mmproj-offload` | do not offload multimodal projector to GPU<br/>(env: LLAMA_ARG_NO_MMPROJ_OFFLOAD) |
-| `-a, --alias STRING` | set alias for model name (to be used by REST API)<br/>(env: LLAMA_ARG_ALIAS) |
-| `--host HOST` | ip address to listen, or bind to an UNIX socket if the address ends with .sock (default: 127.0.0.1)<br/>(env: LLAMA_ARG_HOST) |
-| `--port PORT` | port to listen (default: 8080)<br/>(env: LLAMA_ARG_PORT) |
-| `--path PATH` | path to serve static files from (default: )<br/>(env: LLAMA_ARG_STATIC_PATH) |
-| `--no-webui` | Disable the Web UI (default: enabled)<br/>(env: LLAMA_ARG_NO_WEBUI) |
-| `--embedding, --embeddings` | restrict to only support embedding use case; use only with dedicated embedding models (default: disabled)<br/>(env: LLAMA_ARG_EMBEDDINGS) |
-| `--reranking, --rerank` | enable reranking endpoint on server (default: disabled)<br/>(env: LLAMA_ARG_RERANKING) |
-| `--api-key KEY` | API key to use for authentication (default: none)<br/>(env: LLAMA_API_KEY) |
-| `--api-key-file FNAME` | path to file containing API keys (default: none) |
-| `--ssl-key-file FNAME` | path to file a PEM-encoded SSL private key<br/>(env: LLAMA_ARG_SSL_KEY_FILE) |
-| `--ssl-cert-file FNAME` | path to file a PEM-encoded SSL certificate<br/>(env: LLAMA_ARG_SSL_CERT_FILE) |
-| `--chat-template-kwargs STRING` | JSON object containing additional params for the json template parser. Example: `--chat_template_kwargs "{\"enable_thinking\":false}`"<br/>(env: LLAMA_CHAT_TEMPLATE_KWARGS) |
-| `-to, --timeout N` | server read/write timeout in seconds (default: 600)<br/>(env: LLAMA_ARG_TIMEOUT) |
-| `--threads-http N` | number of threads used to process HTTP requests (default: -1)<br/>(env: LLAMA_ARG_THREADS_HTTP) |
-| `--cache-reuse N` | min chunk size to attempt reusing from the cache via KV shifting (default: 0)<br/>[(card)](https://ggml.ai/f0.png)<br/>(env: LLAMA_ARG_CACHE_REUSE) |
-| `--metrics` | enable prometheus compatible metrics endpoint (default: disabled)<br/>(env: LLAMA_ARG_ENDPOINT_METRICS) |
-| `--slots` | enable slots monitoring endpoint (default: disabled)<br/>(env: LLAMA_ARG_ENDPOINT_SLOTS) |
-| `--props` | enable changing global properties via POST /props (default: disabled)<br/>(env: LLAMA_ARG_ENDPOINT_PROPS) |
-| `--no-slots` | disables slots monitoring endpoint<br/>(env: LLAMA_ARG_NO_ENDPOINT_SLOTS) |
-| `--slot-save-path PATH` | path to save slot kv cache (default: disabled) |
-| `--jinja` | use jinja template for chat (default: disabled)<br/>(env: LLAMA_ARG_JINJA) |
-| `--reasoning-format FORMAT` | controls whether thought tags are allowed and/or extracted from the response, and in which format they're returned; one of:<br/>- none: leaves thoughts unparsed in `message.content`<br/>- deepseek: puts thoughts in `message.reasoning_content` (except in streaming mode, which behaves as `none`)<br/>(default: deepseek)<br/>(env: LLAMA_ARG_THINK) |
-| `--reasoning-budget N` | controls the amount of thinking allowed; currently only one of: -1 for unrestricted thinking budget, or 0 to disable thinking (default: -1)<br/>(env: LLAMA_ARG_THINK_BUDGET) |
-| `--chat-template JINJA_TEMPLATE` | set custom jinja chat template (default: template taken from model's metadata)<br/>if suffix/prefix are specified, template will be disabled<br/>only commonly used templates are accepted (unless --jinja is set before this flag):<br/>list of built-in templates:<br/>bailing, chatglm3, chatglm4, chatml, command-r, deepseek, deepseek2, deepseek3, exaone3, falcon3, gemma, gigachat, glmedge, granite, llama2, llama2-sys, llama2-sys-bos, llama2-sys-strip, llama3, llama4, megrez, minicpm, mistral-v1, mistral-v3, mistral-v3-tekken, mistral-v7, mistral-v7-tekken, monarch, openchat, orion, phi3, phi4, rwkv-world, smolvlm, vicuna, vicuna-orca, yandex, zephyr<br/>(env: LLAMA_ARG_CHAT_TEMPLATE) |
-| `--chat-template-file JINJA_TEMPLATE_FILE` | set custom jinja chat template file (default: template taken from model's metadata)<br/>if suffix/prefix are specified, template will be disabled<br/>only commonly used templates are accepted (unless --jinja is set before this flag):<br/>list of built-in templates:<br/>bailing, chatglm3, chatglm4, chatml, command-r, deepseek, deepseek2, deepseek3, exaone3, falcon3, gemma, gigachat, glmedge, granite, llama2, llama2-sys, llama2-sys-bos, llama2-sys-strip, llama3, llama4, megrez, minicpm, mistral-v1, mistral-v3, mistral-v3-tekken, mistral-v7, mistral-v7-tekken, monarch, openchat, orion, phi3, phi4, rwkv-world, smolvlm, vicuna, vicuna-orca, yandex, zephyr<br/>(env: LLAMA_ARG_CHAT_TEMPLATE_FILE) |
-| `--no-prefill-assistant` | whether to prefill the assistant's response if the last message is an assistant message (default: prefill enabled)<br/>when this flag is set, if the last message is an assistant message then it will be treated as a full message and not prefilled<br/>(env: LLAMA_ARG_NO_PREFILL_ASSISTANT) |
-| `-sps, --slot-prompt-similarity SIMILARITY` | how much the prompt of a request must match the prompt of a slot in order to use that slot (default: 0.50, 0.0 = disabled)<br/> |
-| `--lora-init-without-apply` | load LoRA adapters without applying them (apply later via POST /lora-adapters) (default: disabled) |
-| `--draft-max, --draft, --draft-n N` | number of tokens to draft for speculative decoding (default: 16)<br/>(env: LLAMA_ARG_DRAFT_MAX) |
-| `--draft-min, --draft-n-min N` | minimum number of draft tokens to use for speculative decoding (default: 0)<br/>(env: LLAMA_ARG_DRAFT_MIN) |
-| `--draft-p-min P` | minimum speculative decoding probability (greedy) (default: 0.8)<br/>(env: LLAMA_ARG_DRAFT_P_MIN) |
-| `-cd, --ctx-size-draft N` | size of the prompt context for the draft model (default: 0, 0 = loaded from model)<br/>(env: LLAMA_ARG_CTX_SIZE_DRAFT) |
-| `-devd, --device-draft <dev1,dev2,..>` | comma-separated list of devices to use for offloading the draft model (none = don't offload)<br/>use --list-devices to see a list of available devices |
-| `-ngld, --gpu-layers-draft, --n-gpu-layers-draft N` | number of layers to store in VRAM for the draft model<br/>(env: LLAMA_ARG_N_GPU_LAYERS_DRAFT) |
-| `-md, --model-draft FNAME` | draft model for speculative decoding (default: unused)<br/>(env: LLAMA_ARG_MODEL_DRAFT) |
-| `-ctkd, --cache-type-k-draft TYPE` | KV cache data type for K for speculative decoding model<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1<br/>(default: f16)<br/>(env: LLAMA_ARG_CACHE_TYPE_K_DRAFT) |
-| `-ctvd, --cache-type-v-draft TYPE` | KV cache data type for V for speculative decoding model<br/>allowed values: f32, f16, bf16, q8_0, q4_0, q4_1, iq4_nl, q5_0, q5_1<br/>(default: f16)<br/>(env: LLAMA_ARG_CACHE_TYPE_V_DRAFT) |
-| `-mv, --model-vocoder FNAME` | vocoder model for audio generation (default: unused) |
-| `--tts-use-guide-tokens` | Use guide tokens to improve TTS word recall |
-| `--embd-bge-small-en-default` | use default bge-small-en-v1.5 model (note: can download weights from the internet) |
-| `--embd-e5-small-en-default` | use default e5-small-v2 model (note: can download weights from the internet) |
-| `--embd-gte-small-default` | use default gte-small model (note: can download weights from the internet) |
-| `--fim-qwen-1.5b-default` | use default Qwen 2.5 Coder 1.5B (note: can download weights from the internet) |
-| `--fim-qwen-3b-default` | use default Qwen 2.5 Coder 3B (note: can download weights from the internet) |
-| `--fim-qwen-7b-default` | use default Qwen 2.5 Coder 7B (note: can download weights from the internet) |
-| `--fim-qwen-7b-spec` | use Qwen 2.5 Coder 7B + 0.5B draft for speculative decoding (note: can download weights from the internet) |
-| `--fim-qwen-14b-spec` | use Qwen 2.5 Coder 14B + 0.5B draft for speculative decoding (note: can download weights from the internet) |
+## Requirements
+
+- Python 3.7 or higher
+- `llama-server` executable (from llama.cpp) in your PATH or application directory
+- Required Python packages (automatically installed):
+  - `ttkbootstrap`
+  - `Pillow` (for system tray icon support)
+  - `pystray` (optional, for system tray functionality)
+
+## Installation
+
+### Option 1: Download Pre-built Executable
+1. Download the latest release from the GitHub releases page
+2. Extract to your desired location
+3. Ensure `llama-server` executable is in the same directory or your PATH
+4. Run `LLaMA-Server-GUI.exe` (Windows) or `LLaMA-Server-GUI` (Linux/Mac)
+
+### Option 2: Run from Source
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/llama-server-gui.git
+   cd llama-server-gui
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install ttkbootstrap pillow pystray
+   ```
+
+3. Run the application:
+   ```bash
+   python llama-server_gui_new.py
+   ```
+
+### Option 3: Build Your Own Executable
+1. Install PyInstaller:
+   ```bash
+   pip install pyinstaller ttkbootstrap pillow pystray
+   ```
+
+2. Run the build script:
+   ```bash
+   python build_exe.py
+   ```
+
+3. Find your executable in the `dist` folder
+
+## Usage
+
+### Quick Start
+1. **Load a Model**: Use the "Browse" button in the Models tab to select your GGUF model file
+2. **Configure Settings**: Adjust parameters across the different tabs as needed
+3. **Start Server**: Click the "Start Server" button
+4. **Access Web UI**: Click "Open Browser" to access the llama.cpp web interface
+
+### Configuration Tabs
+
+#### 📁 Models
+- **Primary Model**: Select your main GGUF model file
+- **Model Extensions**: Add LoRA adapters or multimodal projectors
+- **Chat Behavior**: Configure chat templates and reasoning settings
+
+#### ⚙️ Generation
+- **Output Control**: Set token limits and generation behavior
+- **Sampling Parameters**: Fine-tune creativity and randomness
+
+#### 🚀 Performance
+- **Core Performance**: Context size, GPU layers, CPU threads
+- **Advanced Throughput**: Parallel processing and continuous batching
+
+#### 🔬 Advanced
+- **Memory Optimizations**: Flash attention, memory locking, NUMA settings
+- **Speculative Decoding**: Use draft models for faster inference
+
+#### 🌐 Server & API
+- **Network Configuration**: Host, port, and API key settings
+- **Custom Arguments**: Add any additional llama-server flags
+- **Access Control**: Configure web UI and API access
+
+#### 📊 Server Output
+- **Live Monitoring**: Real-time server log output
+- **Log Management**: Clear output and monitor server status
+
+### Configuration Management
+- **Save Config**: Preserve your current settings to `llama_server_config.json`
+- **Load Config**: Restore previously saved configurations
+- **Portable**: Config file is stored in the application directory
+
+### System Tray (Optional)
+When pystray is installed, the application can minimize to the system tray:
+- **Minimize to Tray**: Close the window to hide in the system tray
+- **Tray Menu**: Right-click the tray icon for quick actions
+- **Background Operation**: Keep the server running while GUI is hidden
+
+## Configuration File
+
+The application saves settings in JSON format. Example structure:
+
+```json
+{
+    "model_path": "/path/to/your/model.gguf",
+    "ctx_size": 4096,
+    "gpu_layers": 33,
+    "host": "127.0.0.1",
+    "port": "8080",
+    "custom_arguments_list": [
+        {
+            "value": "--custom-flag value",
+            "enabled": true
+        }
+    ]
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**"llama-server executable not found"**
+- Ensure `llama-server` is in your PATH or the same directory as the GUI
+- Download llama.cpp binaries from the official releases
+
+**"Module not found" errors**
+- Install missing dependencies: `pip install ttkbootstrap pillow pystray`
+- For source installation, ensure all requirements are met
+
+**Server won't start**
+- Check that your model path is correct and the file exists
+- Verify you have sufficient GPU memory for the selected GPU layers
+- Review the Server Output tab for detailed error messages
+
+**Performance issues**
+- Reduce context size for lower memory usage
+- Adjust GPU layers based on your hardware capabilities
+- Use smaller batch sizes for memory-constrained systems
+
+### Getting Help
+- Check the Server Output tab for detailed error messages
+- Review the generated command using "Generate Command" button
+- Consult the llama.cpp documentation for parameter details
+
+## Building from Source
+
+### Development Setup
+```bash
+git clone https://github.com/yourusername/llama-server-gui.git
+cd llama-server-gui
+pip install -r requirements.txt
+python llama-server_gui_new.py
+```
+
+### Building Executable
+The included `build_exe.py` script uses PyInstaller to create a standalone executable:
+
+```bash
+python build_exe.py
+```
+
+This creates a single executable file in the `dist` directory that includes all dependencies.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues, feature requests, or pull requests.
+
+### Development Guidelines
+- Follow Python PEP 8 style guidelines
+- Add tooltips for new UI elements
+- Update configuration saving/loading for new parameters
+- Test on multiple platforms when possible
+
+## License
+
+This project is released under the MIT License. See the LICENSE file for details.
+
+## Acknowledgments
+
+- Built for the [llama.cpp](https://github.com/ggerganov/llama.cpp) project
+- Uses [ttkbootstrap](https://github.com/israel-dryer/ttkbootstrap) for modern UI theming
+- System tray support provided by [pystray](https://github.com/moses-palmer/pystray)
+
+## Changelog
+
+### v1.0.0
+- Initial release
+- Complete GUI for llama-server configuration
+- Configuration save/load functionality
+- Real-time server output monitoring
+- System tray support
+- Cross-platform executable building
+
+---
+
+**Note**: This GUI is a third-party tool for llama.cpp and is not officially affiliated with the llama.cpp project.
