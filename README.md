@@ -28,14 +28,14 @@ A comprehensive graphical user interface for managing and configuring the `llama
 - **Browser Integration**: Quick access to the web UI
 - **System Tray Support**: Minimize to tray and run in background (optional)
 
-<img width="300" alt="Screenshot 2025-09-10 164907" src="https://github.com/user-attachments/assets/a5bb3f07-abb7-4095-a5bd-5928b3741286" />
-<img width="300" alt="Screenshot 2025-09-10 164914" src="https://github.com/user-attachments/assets/7c89b4f8-9cfd-44f2-9b0e-a809b50464b8" />
-<img width="300" alt="Screenshot 2025-09-10 164917" src="https://github.com/user-attachments/assets/459385c2-b296-40ec-9290-553e31176b65" />
-<img width="300" alt="Screenshot 2025-09-10 164921" src="https://github.com/user-attachments/assets/1522191c-5e96-47c4-b7b1-0a0a785779c3" />
-<img width="300" alt="Screenshot 2025-09-10 164924" src="https://github.com/user-attachments/assets/51e9d56a-97df-4196-9f76-9d04f4be02bf" />
-<img width="300" alt="Screenshot 2025-09-10 170830" src="https://github.com/user-attachments/assets/8726915e-c689-4cf4-bca6-51b7fa7520fc" />
-<img width="300" alt="Screenshot 2025-09-10 165115" src="https://github.com/user-attachments/assets/f0d07dad-feac-47e0-9b00-8cc5abc560bd" />
-<img width="300" alt="Screenshot 2025-09-10 170815" src="https://github.com/user-attachments/assets/a7fe1576-9f89-439c-ae50-ca9b02414683" />
+<img width="400" alt="Screenshot 2025-09-10 164907" src="https://github.com/user-attachments/assets/a5bb3f07-abb7-4095-a5bd-5928b3741286" />
+<img width="400" alt="Screenshot 2025-09-10 164914" src="https://github.com/user-attachments/assets/7c89b4f8-9cfd-44f2-9b0e-a809b50464b8" />
+<img width="400" alt="Screenshot 2025-09-10 164917" src="https://github.com/user-attachments/assets/459385c2-b296-40ec-9290-553e31176b65" />
+<img width="400" alt="Screenshot 2025-09-10 164921" src="https://github.com/user-attachments/assets/1522191c-5e96-47c4-b7b1-0a0a785779c3" />
+<img width="400" alt="Screenshot 2025-09-10 164924" src="https://github.com/user-attachments/assets/51e9d56a-97df-4196-9f76-9d04f4be02bf" />
+<img width="400" alt="Screenshot 2025-09-10 170830" src="https://github.com/user-attachments/assets/8726915e-c689-4cf4-bca6-51b7fa7520fc" />
+<img width="400" alt="Screenshot 2025-09-10 165115" src="https://github.com/user-attachments/assets/f0d07dad-feac-47e0-9b00-8cc5abc560bd" />
+<img width="400" alt="Screenshot 2025-09-10 170815" src="https://github.com/user-attachments/assets/a7fe1576-9f89-439c-ae50-ca9b02414683" />
 
 
 
