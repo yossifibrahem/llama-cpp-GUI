@@ -12,7 +12,7 @@
     "batch_size": "",
     "cont_batching": true,
     "parallel": "",
-    "flash_attn": true,
+    "flash_attn": "auto",
     "mlock": false,
     "no_mmap": true,
     "numa": false,
