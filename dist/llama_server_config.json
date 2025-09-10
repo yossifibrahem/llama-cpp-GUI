@@ -36,8 +36,8 @@
     "ubatch_size": "",
     "n_predict": "",
     "ignore_eos": false,
-    "temp": "",
+    "temp": "1.0",
     "top_k": "",
-    "top_p": "",
+    "top_p": "1.0",
     "repeat_penalty": ""
 }
